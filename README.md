@@ -2,6 +2,52 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+### Environment Variables
+
+Create a `.env.local` file in the root directory with the following variables:
+
+```bash
+GOOGLE_AI_API_KEY=your_google_ai_api_key_here
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+```
+
+### Setting Up Google AI API Key
+
+If you encounter the `API_KEY_SERVICE_BLOCKED` error, follow these steps:
+
+1. **Go to Google Cloud Console**: https://console.cloud.google.com/
+2. **Select or create a project**
+3. **Enable the Generative Language API**:
+   - Navigate to "APIs & Services" > "Library"
+   - Search for "Generative Language API"
+   - Click on it and press "Enable"
+4. **Create an API Key**:
+   - Go to "APIs & Services" > "Credentials"
+   - Click "Create Credentials" > "API Key"
+   - Copy the API key
+5. **Configure API Key Restrictions** (optional but recommended):
+   - Click on the API key you just created
+   - Under "API restrictions", select "Restrict key"
+   - Choose "Generative Language API" from the list
+   - Save the changes
+6. **Enable Billing** (if required):
+   - Some Google Cloud services require billing to be enabled
+   - Go to "Billing" in the Cloud Console and link a billing account
+
+After completing these steps, add the API key to your `.env.local` file and restart your development server.
+
+### Setting Up Google Maps API Key
+
+1. **Go to Google Cloud Console**: https://console.cloud.google.com/
+2. **Enable the Maps JavaScript API**:
+   - Navigate to "APIs & Services" > "Library"
+   - Search for "Maps JavaScript API"
+   - Click on it and press "Enable"
+3. **Create an API Key** (or reuse the one from above)
+4. **Add the API key to your `.env.local` file**
+
+## Running the Development Server
+
 First, run the development server:
 
 ```bash
