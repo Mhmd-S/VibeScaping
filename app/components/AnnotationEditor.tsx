@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import simplify from "simplify-js";
 import {
-  Annotation,
-  AnnotationTool,
-  GeneratedImage,
-  Point,
+    Annotation,
+    AnnotationTool,
+    GeneratedImage,
+    Point,
+    RevisionNode,
 } from "../types/landscape";
 import {
   ArrowUpRight,
@@ -14,7 +15,7 @@ import {
   Circle as CircleIcon,
   Loader2,
   MousePointer2,
-  Pencil,
+    Pencil,
   RotateCcw,
   RotateCw,
   Send,
@@ -50,45 +51,51 @@ const simplifyAnnotationPoints = (
 };
 
 export const AnnotationEditor = ({
-  generatedImage,
-  originalCapturedImage,
-  onCancel,
-  onRevisionComplete,
-  onError,
+    generatedImage,
+    originalCapturedImage,
+    onCancel,
+    onRevisionComplete,
+    onError,
 }: AnnotationEditorProps) => {
-  const [annotations, setAnnotations] = useState<Annotation[]>([]);
-  const [currentTool, setCurrentTool] = useState<AnnotationTool>("select");
-  const annotationColor = "#ef4444";
-  const [isAnnotationDrawing, setIsAnnotationDrawing] = useState(false);
-  const [currentAnnotationPoints, setCurrentAnnotationPoints] = useState<
-    Point[]
-  >([]);
-  const [isRevising, setIsRevising] = useState(false);
-  const [imageZoom, setImageZoom] = useState(1);
-  const [imageRotation, setImageRotation] = useState(0);
-  const [generatedSize, setGeneratedSize] = useState<{
-    width: number;
-    height: number;
-  } | null>(null);
-  const [referenceSize, setReferenceSize] = useState<{
-    width: number;
-    height: number;
-  } | null>(null);
-  const [showOriginalReference, setShowOriginalReference] = useState(
-    !!originalCapturedImage
-  );
+    const [annotations, setAnnotations] = useState<Annotation[]>([]);
+    const [currentTool, setCurrentTool] = useState<AnnotationTool>("select");
+    const annotationColor = "#ef4444";
+    const [isAnnotationDrawing, setIsAnnotationDrawing] = useState(false);
+    const [currentAnnotationPoints, setCurrentAnnotationPoints] = useState<
+        Point[]
+    >([]);
+    const [isRevising, setIsRevising] = useState(false);
+    const [imageZoom, setImageZoom] = useState(1);
+    const [imageRotation, setImageRotation] = useState(0);
+    const [generatedSize, setGeneratedSize] = useState<{
+        width: number;
+        height: number;
+    } | null>(null);
+    const [referenceSize, setReferenceSize] = useState<{
+        width: number;
+        height: number;
+    } | null>(null);
+    const [showOriginalReference, setShowOriginalReference] = useState(
+        !!originalCapturedImage
+    );
+    const [activeImage, setActiveImage] = useState<GeneratedImage>(
+        generatedImage
+    );
+    const [revisionHistory, setRevisionHistory] = useState<RevisionNode[]>([]);
+    const lastRevisionImageRef = useRef<string | null>(null);
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  const editorCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const editorImageRef = useRef<HTMLImageElement | null>(null);
-  const mainScrollRef = useRef<HTMLDivElement | null>(null);
-  const referenceScrollRef = useRef<HTMLDivElement | null>(null);
-  const transformWrapperRef = useRef<HTMLDivElement | null>(null);
-  const isSyncingScrollRef = useRef(false);
-  const labelDragRef = useRef<{
-    id: string;
-    start: Point;
-    offset: Point;
-  } | null>(null);
+    const editorCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const editorImageRef = useRef<HTMLImageElement | null>(null);
+    const mainScrollRef = useRef<HTMLDivElement | null>(null);
+    const referenceScrollRef = useRef<HTMLDivElement | null>(null);
+    const transformWrapperRef = useRef<HTMLDivElement | null>(null);
+    const isSyncingScrollRef = useRef(false);
+    const labelDragRef = useRef<{
+        id: string;
+        start: Point;
+        offset: Point;
+    } | null>(null);
 
   const getAnnotationAnchorPoint = useCallback((ann: Annotation) => {
     const pts = ann.points;
@@ -132,176 +139,207 @@ export const AnnotationEditor = ({
     return { x: transformed.x, y: transformed.y };
   }, []);
 
-  const drawAnnotations = useCallback(
-    (
-      ctx: CanvasRenderingContext2D,
-      anns: Annotation[],
-      currentPts?: Point[]
-    ) => {
-      anns.forEach((ann) => {
-        ctx.strokeStyle = ann.color;
-        ctx.lineWidth = 3;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
+    const drawAnnotations = useCallback(
+        (
+            ctx: CanvasRenderingContext2D,
+            anns: Annotation[],
+            currentPts?: Point[]
+        ) => {
+            anns.forEach((ann) => {
+                ctx.strokeStyle = ann.color;
+                ctx.lineWidth = 3;
+                ctx.lineCap = "round";
+                ctx.lineJoin = "round";
 
-        const pts = ann.points;
-        if (pts.length < 2) return;
+                const pts = ann.points;
+                if (pts.length < 2) return;
 
-        ctx.beginPath();
+                ctx.beginPath();
 
-        switch (ann.type) {
-          case "circle": {
-            const centerX = (pts[0].x + pts[1].x) / 2;
-            const centerY = (pts[0].y + pts[1].y) / 2;
-            const radiusX = Math.abs(pts[1].x - pts[0].x) / 2;
-            const radiusY = Math.abs(pts[1].y - pts[0].y) / 2;
-            ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
-            break;
-          }
-          case "rectangle":
-            ctx.rect(
-              pts[0].x,
-              pts[0].y,
-              pts[1].x - pts[0].x,
-              pts[1].y - pts[0].y
-            );
-            break;
-          case "line":
-            ctx.moveTo(pts[0].x, pts[0].y);
-            ctx.lineTo(pts[1].x, pts[1].y);
-            break;
-          case "arrow": {
-            ctx.moveTo(pts[0].x, pts[0].y);
-            ctx.lineTo(pts[1].x, pts[1].y);
-            const angle = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x);
-            const arrowSize = 15;
-            ctx.lineTo(
-              pts[1].x - arrowSize * Math.cos(angle - Math.PI / 6),
-              pts[1].y - arrowSize * Math.sin(angle - Math.PI / 6)
-            );
-            ctx.moveTo(pts[1].x, pts[1].y);
-            ctx.lineTo(
-              pts[1].x - arrowSize * Math.cos(angle + Math.PI / 6),
-              pts[1].y - arrowSize * Math.sin(angle + Math.PI / 6)
-            );
-            break;
-          }
-          case "freehand":
-            ctx.moveTo(pts[0].x, pts[0].y);
-            pts.forEach((pt) => ctx.lineTo(pt.x, pt.y));
-            break;
-        }
+                switch (ann.type) {
+                    case "circle": {
+                        const centerX = (pts[0].x + pts[1].x) / 2;
+                        const centerY = (pts[0].y + pts[1].y) / 2;
+                        const radiusX = Math.abs(pts[1].x - pts[0].x) / 2;
+                        const radiusY = Math.abs(pts[1].y - pts[0].y) / 2;
+                        ctx.ellipse(
+                            centerX,
+                            centerY,
+                            radiusX,
+                            radiusY,
+                            0,
+                            0,
+                            Math.PI * 2
+                        );
+                        break;
+                    }
+                    case "rectangle":
+                        ctx.rect(
+                            pts[0].x,
+                            pts[0].y,
+                            pts[1].x - pts[0].x,
+                            pts[1].y - pts[0].y
+                        );
+                        break;
+                    case "line":
+                        ctx.moveTo(pts[0].x, pts[0].y);
+                        ctx.lineTo(pts[1].x, pts[1].y);
+                        break;
+                    case "arrow": {
+                        ctx.moveTo(pts[0].x, pts[0].y);
+                        ctx.lineTo(pts[1].x, pts[1].y);
+                        const angle = Math.atan2(
+                            pts[1].y - pts[0].y,
+                            pts[1].x - pts[0].x
+                        );
+                        const arrowSize = 15;
+                        ctx.lineTo(
+                            pts[1].x -
+                                arrowSize * Math.cos(angle - Math.PI / 6),
+                            pts[1].y -
+                                arrowSize * Math.sin(angle - Math.PI / 6)
+                        );
+                        ctx.moveTo(pts[1].x, pts[1].y);
+                        ctx.lineTo(
+                            pts[1].x -
+                                arrowSize * Math.cos(angle + Math.PI / 6),
+                            pts[1].y -
+                                arrowSize * Math.sin(angle + Math.PI / 6)
+                        );
+                        break;
+                    }
+                    case "freehand":
+                        ctx.moveTo(pts[0].x, pts[0].y);
+                        pts.forEach((pt) => ctx.lineTo(pt.x, pt.y));
+                        break;
+                }
 
-        ctx.stroke();
+                ctx.stroke();
 
-        if (ann.text) {
-          const anchor = getAnnotationAnchorPoint(ann);
-          const offset = ann.labelOffset || { x: 0, y: 0 };
-          let labelX = anchor.x + offset.x;
-          let labelY = anchor.y + offset.y;
-          const padding = 6;
-          const baselineHeight = 14;
+                if (ann.text) {
+                    const anchor = getAnnotationAnchorPoint(ann);
+                    const offset = ann.labelOffset || { x: 0, y: 0 };
+                    let labelX = anchor.x + offset.x;
+                    let labelY = anchor.y + offset.y;
+                    const padding = 6;
+                    const baselineHeight = 14;
 
-          ctx.font = "bold 14px system-ui";
-          ctx.fillStyle = ann.color;
-          const textMetrics = ctx.measureText(ann.text);
-          const bgWidth = textMetrics.width + padding * 2;
-          const bgHeight = 18 + padding * 2;
+                    ctx.font = "bold 14px system-ui";
+                    ctx.fillStyle = ann.color;
+                    const textMetrics = ctx.measureText(ann.text);
+                    const bgWidth = textMetrics.width + padding * 2;
+                    const bgHeight = 18 + padding * 2;
 
-          let bgLeft = labelX - padding;
-          let bgTop = labelY - baselineHeight - padding;
-          const canvasWidth = ctx.canvas.width;
-          const canvasHeight = ctx.canvas.height;
-          const guard = 8;
+                    let bgLeft = labelX - padding;
+                    let bgTop = labelY - baselineHeight - padding;
+                    const canvasWidth = ctx.canvas.width;
+                    const canvasHeight = ctx.canvas.height;
+                    const guard = 8;
 
-          if (bgLeft < guard) {
-            labelX += guard - bgLeft;
-            bgLeft = guard;
-          }
-          if (bgTop < guard) {
-            labelY += guard - bgTop;
-            bgTop = guard;
-          }
-          if (bgLeft + bgWidth > canvasWidth - guard) {
-            const delta = bgLeft + bgWidth - (canvasWidth - guard);
-            labelX -= delta;
-            bgLeft -= delta;
-          }
-          if (bgTop + bgHeight > canvasHeight - guard) {
-            const delta = bgTop + bgHeight - (canvasHeight - guard);
-            labelY -= delta;
-            bgTop -= delta;
-          }
+                    if (bgLeft < guard) {
+                        labelX += guard - bgLeft;
+                        bgLeft = guard;
+                    }
+                    if (bgTop < guard) {
+                        labelY += guard - bgTop;
+                        bgTop = guard;
+                    }
+                    if (bgLeft + bgWidth > canvasWidth - guard) {
+                        const delta =
+                            bgLeft + bgWidth - (canvasWidth - guard);
+                        labelX -= delta;
+                        bgLeft -= delta;
+                    }
+                    if (bgTop + bgHeight > canvasHeight - guard) {
+                        const delta =
+                            bgTop + bgHeight - (canvasHeight - guard);
+                        labelY -= delta;
+                        bgTop -= delta;
+                    }
 
-          ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-          ctx.fillRect(bgLeft, bgTop, bgWidth, bgHeight);
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+                    ctx.fillRect(bgLeft, bgTop, bgWidth, bgHeight);
 
-          ctx.fillStyle = ann.color;
-          ctx.fillText(ann.text, labelX, labelY);
-        }
-      });
+                    ctx.fillStyle = ann.color;
+                    ctx.fillText(ann.text, labelX, labelY);
+                }
+            });
 
-      if (currentPts && currentPts.length >= 2 && currentTool !== "select") {
-        ctx.strokeStyle = annotationColor;
-        ctx.lineWidth = 3;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        ctx.setLineDash([5, 5]);
+            if (currentPts && currentPts.length >= 2 && currentTool !== "select") {
+                ctx.strokeStyle = annotationColor;
+                ctx.lineWidth = 3;
+                ctx.lineCap = "round";
+                ctx.lineJoin = "round";
+                ctx.setLineDash([5, 5]);
 
-        ctx.beginPath();
+                ctx.beginPath();
 
-        switch (currentTool) {
-          case "circle": {
-            const centerX = (currentPts[0].x + currentPts[1].x) / 2;
-            const centerY = (currentPts[0].y + currentPts[1].y) / 2;
-            const radiusX = Math.abs(currentPts[1].x - currentPts[0].x) / 2;
-            const radiusY = Math.abs(currentPts[1].y - currentPts[0].y) / 2;
-            ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
-            break;
-          }
-          case "rectangle":
-            ctx.rect(
-              currentPts[0].x,
-              currentPts[0].y,
-              currentPts[1].x - currentPts[0].x,
-              currentPts[1].y - currentPts[0].y
-            );
-            break;
-          case "line":
-            ctx.moveTo(currentPts[0].x, currentPts[0].y);
-            ctx.lineTo(currentPts[1].x, currentPts[1].y);
-            break;
-          case "arrow": {
-            ctx.moveTo(currentPts[0].x, currentPts[0].y);
-            ctx.lineTo(currentPts[1].x, currentPts[1].y);
-            const angle = Math.atan2(
-              currentPts[1].y - currentPts[0].y,
-              currentPts[1].x - currentPts[0].x
-            );
-            const arrowSize = 15;
-            ctx.lineTo(
-              currentPts[1].x - arrowSize * Math.cos(angle - Math.PI / 6),
-              currentPts[1].y - arrowSize * Math.sin(angle - Math.PI / 6)
-            );
-            ctx.moveTo(currentPts[1].x, currentPts[1].y);
-            ctx.lineTo(
-              currentPts[1].x - arrowSize * Math.cos(angle + Math.PI / 6),
-              currentPts[1].y - arrowSize * Math.sin(angle + Math.PI / 6)
-            );
-            break;
-          }
-          case "freehand":
-            ctx.moveTo(currentPts[0].x, currentPts[0].y);
-            currentPts.forEach((pt) => ctx.lineTo(pt.x, pt.y));
-            break;
-        }
+                switch (currentTool) {
+                    case "circle": {
+                        const centerX = (currentPts[0].x + currentPts[1].x) / 2;
+                        const centerY = (currentPts[0].y + currentPts[1].y) / 2;
+                        const radiusX =
+                            Math.abs(currentPts[1].x - currentPts[0].x) / 2;
+                        const radiusY =
+                            Math.abs(currentPts[1].y - currentPts[0].y) / 2;
+                        ctx.ellipse(
+                            centerX,
+                            centerY,
+                            radiusX,
+                            radiusY,
+                            0,
+                            0,
+                            Math.PI * 2
+                        );
+                        break;
+                    }
+                    case "rectangle":
+                        ctx.rect(
+                            currentPts[0].x,
+                            currentPts[0].y,
+                            currentPts[1].x - currentPts[0].x,
+                            currentPts[1].y - currentPts[0].y
+                        );
+                        break;
+                    case "line":
+                        ctx.moveTo(currentPts[0].x, currentPts[0].y);
+                        ctx.lineTo(currentPts[1].x, currentPts[1].y);
+                        break;
+                    case "arrow": {
+                        ctx.moveTo(currentPts[0].x, currentPts[0].y);
+                        ctx.lineTo(currentPts[1].x, currentPts[1].y);
+                        const angle = Math.atan2(
+                            currentPts[1].y - currentPts[0].y,
+                            currentPts[1].x - currentPts[0].x
+                        );
+                        const arrowSize = 15;
+                        ctx.lineTo(
+                            currentPts[1].x -
+                                arrowSize * Math.cos(angle - Math.PI / 6),
+                            currentPts[1].y -
+                                arrowSize * Math.sin(angle - Math.PI / 6)
+                        );
+                        ctx.moveTo(currentPts[1].x, currentPts[1].y);
+                        ctx.lineTo(
+                            currentPts[1].x -
+                                arrowSize * Math.cos(angle + Math.PI / 6),
+                            currentPts[1].y -
+                                arrowSize * Math.sin(angle + Math.PI / 6)
+                        );
+                        break;
+                    }
+                    case "freehand":
+                        ctx.moveTo(currentPts[0].x, currentPts[0].y);
+                        currentPts.forEach((pt) => ctx.lineTo(pt.x, pt.y));
+                        break;
+                }
 
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-    },
-    [currentTool, getAnnotationAnchorPoint]
-  );
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        },
+        [currentTool, getAnnotationAnchorPoint]
+    );
 
   const handleEditorMouseDown = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -419,30 +457,55 @@ export const AnnotationEditor = ({
     };
   }, []);
 
-  useEffect(() => {
-    const canvas = editorCanvasRef.current;
-    if (!generatedImage || !canvas) return;
+    useEffect(() => {
+        setActiveImage(generatedImage);
+    }, [generatedImage]);
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    useEffect(() => {
+        if (!activeImage?.image) return;
+        if (lastRevisionImageRef.current === activeImage.image) return;
+        setRevisionHistory((prev) => {
+            const parentId = prev.length ? prev[prev.length - 1].id : null;
+            const label =
+                prev.length === 0 ? "Initial image" : `Revision ${prev.length}`;
+            const next: RevisionNode = {
+                id: `rev-${Date.now()}`,
+                parentId,
+                image: activeImage.image,
+                mimeType: activeImage.mimeType,
+                annotations: [],
+                timestamp: Date.now(),
+                label,
+            };
+            return [...prev, next];
+        });
+        lastRevisionImageRef.current = activeImage.image;
+    }, [activeImage]);
 
-    const img = new Image();
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      setGeneratedSize({ width: img.width, height: img.height });
-      ctx.drawImage(img, 0, 0);
-      drawAnnotations(
-        ctx,
-        annotations,
-        currentAnnotationPoints.length >= 2
-          ? currentAnnotationPoints
-          : undefined
-      );
-      editorImageRef.current = img;
-    };
-    img.src = `data:${generatedImage.mimeType};base64,${generatedImage.image}`;
-  }, [generatedImage, annotations, currentAnnotationPoints, drawAnnotations]);
+    useEffect(() => {
+        const canvas = editorCanvasRef.current;
+        if (!activeImage || !canvas) return;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+
+        const img = new Image();
+        img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            setGeneratedSize({ width: img.width, height: img.height });
+            ctx.drawImage(img, 0, 0);
+            drawAnnotations(
+                ctx,
+                annotations,
+                currentAnnotationPoints.length >= 2
+                    ? currentAnnotationPoints
+                    : undefined
+            );
+            editorImageRef.current = img;
+        };
+        img.src = `data:${activeImage.mimeType};base64,${activeImage.image}`;
+    }, [activeImage, annotations, currentAnnotationPoints, drawAnnotations]);
 
   const referenceScaleBoost = 1.2;
 
@@ -452,84 +515,104 @@ export const AnnotationEditor = ({
     return (generatedSize.width / referenceSize.width) * referenceScaleBoost;
   }, [generatedSize, referenceSize, showOriginalReference]);
 
-  const sendForRevision = useCallback(async () => {
-    if (!generatedImage || annotations.length === 0) return;
+    const sendForRevision = useCallback(async () => {
+        if (!activeImage || annotations.length === 0) return;
 
-    setIsRevising(true);
+        setIsRevising(true);
 
-    try {
-      const canvas = document.createElement("canvas");
-      const img = editorImageRef.current;
-      if (!img) throw new Error("Image not loaded");
+        try {
+            const canvas = document.createElement("canvas");
+            const img = editorImageRef.current;
+            if (!img) throw new Error("Image not loaded");
 
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Could not get canvas context");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) throw new Error("Could not get canvas context");
 
-      ctx.drawImage(img, 0, 0);
-      drawAnnotations(ctx, annotations);
+            ctx.drawImage(img, 0, 0);
+            drawAnnotations(ctx, annotations);
 
-      const dataUrl = canvas.toDataURL("image/png");
-      const base64 = dataUrl.split(",")[1];
+            const dataUrl = canvas.toDataURL("image/png");
+            const base64 = dataUrl.split(",")[1];
 
-      const annotationTexts = annotations
-        .filter((ann) => ann.text)
-        .map((ann) => ann.text);
+            const annotationTexts = annotations
+                .filter((ann) => ann.text)
+                .map((ann) => ann.text);
 
-      const response = await fetch("/api/generate-landscape", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          imageBase64: base64,
-          mimeType: "image/png",
-          isRevision: true,
-          revisionNotes: annotationTexts,
-          revisionMode: "annotation",
-        }),
-      });
+            const response = await fetch("/api/generate-landscape", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    imageBase64: base64,
+                    mimeType: "image/png",
+                    isRevision: true,
+                    revisionNotes: annotationTexts,
+                    revisionMode: "annotation",
+                }),
+            });
 
-      const data = await response.json();
+            const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(
-          data.details || data.error || "Failed to revise landscape"
-        );
-      }
+            if (!response.ok) {
+                throw new Error(
+                    data.details || data.error || "Failed to revise landscape"
+                );
+            }
 
-      onRevisionComplete({
-        image: data.image,
-        mimeType: data.mimeType,
-        description: data.description,
-        annotations: annotationTexts,
-      });
-      setAnnotations([]);
-    } catch (err) {
-      onError(
-        err instanceof Error
-          ? err.message
-          : "Failed to revise landscape. Please try again."
-      );
-    } finally {
-      setIsRevising(false);
-    }
-  }, [
-    generatedImage,
-    annotations,
-    drawAnnotations,
-    onRevisionComplete,
-    onError,
-  ]);
+            setRevisionHistory((prev) => {
+                const parentId = prev.length ? prev[prev.length - 1].id : null;
+                const next: RevisionNode = {
+                    id: `rev-${Date.now()}`,
+                    parentId,
+                    image: data.image,
+                    mimeType: data.mimeType,
+                    annotations: annotationTexts,
+                    timestamp: Date.now(),
+                    label: `Revision ${prev.length}`,
+                };
+                return [...prev, next];
+            });
+            lastRevisionImageRef.current = data.image;
+            setActiveImage({
+                image: data.image,
+                mimeType: data.mimeType,
+                description: data.description,
+            });
+
+            onRevisionComplete({
+                image: data.image,
+                mimeType: data.mimeType,
+                description: data.description,
+                annotations: annotationTexts,
+            });
+            setAnnotations([]);
+        } catch (err) {
+            onError(
+                err instanceof Error
+                    ? err.message
+                    : "Failed to revise landscape. Please try again."
+            );
+        } finally {
+            setIsRevising(false);
+        }
+    }, [
+        activeImage,
+        annotations,
+        drawAnnotations,
+        onRevisionComplete,
+        onError,
+    ]);
 
   const applyZoomFactor = useCallback((factor: number) => {
     setImageZoom((prev) => Math.min(Math.max(prev * factor, 0.25), 4));
   }, []);
 
-  const zoomIn = useCallback(() => {
-    applyZoomFactor(1.1);
-  }, [applyZoomFactor]);
+    const zoomIn = useCallback(() => {
+        applyZoomFactor(1.1);
+    }, [applyZoomFactor]);
 
   const zoomOut = useCallback(() => {
     applyZoomFactor(1 / 1.1);
@@ -575,16 +658,16 @@ export const AnnotationEditor = ({
     [applyZoomFactor]
   );
 
-  const handleReferenceLoad = useCallback(
-    (e: React.SyntheticEvent<HTMLImageElement>) => {
-      const img = e.currentTarget;
-      setReferenceSize({
-        width: img.naturalWidth,
-        height: img.naturalHeight,
-      });
-    },
-    []
-  );
+    const handleReferenceLoad = useCallback(
+        (e: React.SyntheticEvent<HTMLImageElement>) => {
+            const img = e.currentTarget;
+            setReferenceSize({
+                width: img.naturalWidth,
+                height: img.naturalHeight,
+            });
+        },
+        []
+    );
 
   const syncScroll = useCallback((source: "main" | "ref") => {
     if (isSyncingScrollRef.current) return;
@@ -618,19 +701,44 @@ export const AnnotationEditor = ({
     });
   }, []);
 
-  const handleLabelDragStart = useCallback(
-    (ann: Annotation, e: React.MouseEvent) => {
-      const canvasPoint = getCanvasPoint(e.clientX, e.clientY);
-      if (!canvasPoint) return;
-      e.preventDefault();
-      labelDragRef.current = {
-        id: ann.id,
-        start: canvasPoint,
-        offset: ann.labelOffset || { x: 0, y: 0 },
-      };
-    },
-    [getCanvasPoint]
-  );
+    const restoreCheckpoint = useCallback(
+        (revisionId: string) => {
+            const revision = revisionHistory.find((rev) => rev.id === revisionId);
+            if (!revision) return;
+            lastRevisionImageRef.current = revision.image;
+            setActiveImage({
+                image: revision.image,
+                mimeType: revision.mimeType,
+                description: revision.label,
+            });
+            setAnnotations([]);
+            setImageZoom(1);
+            setImageRotation(0);
+        },
+        [revisionHistory]
+    );
+
+    const handleRestoreCheckpoint = useCallback(
+        (revisionId: string) => {
+            restoreCheckpoint(revisionId);
+            setIsDrawerOpen(false);
+        },
+        [restoreCheckpoint]
+    );
+
+    const handleLabelDragStart = useCallback(
+        (ann: Annotation, e: React.MouseEvent) => {
+            const canvasPoint = getCanvasPoint(e.clientX, e.clientY);
+            if (!canvasPoint) return;
+            e.preventDefault();
+            labelDragRef.current = {
+                id: ann.id,
+                start: canvasPoint,
+                offset: ann.labelOffset || { x: 0, y: 0 },
+            };
+        },
+        [getCanvasPoint]
+    );
 
   useEffect(() => {
     const handleMove = (e: MouseEvent) => {
@@ -662,6 +770,7 @@ export const AnnotationEditor = ({
   }, [getCanvasPoint]);
 
   return (
+    <>
     <div className="fixed inset-x-0 bottom-0 top-0 z-50 flex bg-zinc-900">
       <div className="flex w-16 flex-col items-center gap-1 border-r border-zinc-700 bg-zinc-800 py-4">
         <button
@@ -777,19 +886,6 @@ export const AnnotationEditor = ({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={() => setAnnotations([])}
-              className="w-full rounded-lg px-3 py-1.5 text-sm text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white sm:w-auto"
-              disabled={annotations.length === 0}
-            >
-              Clear All
-            </button>
-            <button
-              onClick={onCancel}
-              className="w-full rounded-lg px-3 py-1.5 text-sm text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white sm:w-auto"
-            >
-              Cancel
-            </button>
-            <button
               onClick={() =>
                 setShowOriginalReference((prev) => !prev)
               }
@@ -818,6 +914,14 @@ export const AnnotationEditor = ({
                   Send for Revision
                 </span>
               )}
+            </button>
+            <button
+              onClick={() => setIsDrawerOpen(true)}
+              className="w-full rounded-lg border border-zinc-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 sm:w-auto"
+            >
+              <span className="flex items-center gap-2">
+                Checkpoints
+              </span>
             </button>
           </div>
         </div>
@@ -1038,5 +1142,77 @@ export const AnnotationEditor = ({
         )}
       </div>
     </div>
+
+    {/* Checkpoints Drawer */}
+    {isDrawerOpen && (
+      <div
+        className="fixed inset-0 z-60 bg-black/40"
+        onClick={() => setIsDrawerOpen(false)}
+      />
+    )}
+    <div
+      className={`fixed inset-y-0 right-0 z-61 w-80 transform border-l border-zinc-800 bg-zinc-900 shadow-2xl transition-transform duration-300 ${
+        isDrawerOpen ? "translate-x-0" : "translate-x-full"
+      }`}
+    >
+      <div className="flex h-full flex-col">
+        <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
+          <div>
+            <p className="text-sm font-semibold text-white">Checkpoints</p>
+            <p className="text-xs text-zinc-400">
+              Restore any saved revision with its snapshot.
+            </p>
+          </div>
+          <button
+            onClick={() => setIsDrawerOpen(false)}
+            className="rounded p-2 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+            title="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto p-3">
+          {revisionHistory.length === 0 ? (
+            <p className="text-sm text-zinc-500">No checkpoints yet.</p>
+          ) : (
+            revisionHistory
+              .slice()
+              .reverse()
+              .map((rev) => (
+                <div
+                  key={rev.id}
+                  className="mb-3 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 shadow"
+                >
+                  <div className="aspect-video bg-zinc-900">
+                    <img
+                      src={`data:${rev.mimeType};base64,${rev.image}`}
+                      alt={rev.label || "Revision"}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div className="flex items-start justify-between gap-2 px-3 py-2">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-white">
+                        {rev.label || "Revision"}
+                      </span>
+                      <span className="text-xs text-zinc-400">
+                        {new Date(rev.timestamp).toLocaleString()}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleRestoreCheckpoint(rev.id)}
+                      className="rounded bg-zinc-800 px-2 py-1 text-[11px] text-white transition-colors hover:bg-zinc-700"
+                    >
+                      Restore
+                    </button>
+                  </div>
+                </div>
+              ))
+          )}
+        </div>
+      </div>
+    </div>
+    </>
   );
 };
