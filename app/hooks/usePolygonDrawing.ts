@@ -330,19 +330,32 @@ export const usePolygonDrawing = () => {
 
     const hidePolygonOverlays = useCallback(() => {
         if (!drawnPolygon) return () => {};
+
+        const polygonMap = drawnPolygon.getMap();
         const polygonVisible = drawnPolygon.getVisible();
         const polygonEditable = drawnPolygon.getEditable();
-        const markerVisibility = vertexMarkersRef.current.map((marker) => marker.getVisible());
+        const markerState = vertexMarkersRef.current.map((marker) => ({
+            map: marker.getMap(),
+            visible: marker.getVisible(),
+        }));
+
         drawnPolygon.setEditable(false);
-        drawnPolygon.setVisible(false);
-        vertexMarkersRef.current.forEach((marker) => marker.setVisible(false));
+        drawnPolygon.setMap(null);
+        vertexMarkersRef.current.forEach((marker) => marker.setMap(null));
 
         return () => {
+            if (polygonMap) {
+                drawnPolygon.setMap(polygonMap);
+            }
             drawnPolygon.setVisible(polygonVisible);
             drawnPolygon.setEditable(polygonEditable);
+
             vertexMarkersRef.current.forEach((marker, idx) => {
-                const shouldShow = markerVisibility[idx] ?? true;
-                marker.setVisible(shouldShow);
+                const state = markerState[idx];
+                if (state?.map) {
+                    marker.setMap(state.map);
+                }
+                marker.setVisible(state?.visible ?? true);
             });
         };
     }, [drawnPolygon]);

@@ -9,6 +9,7 @@ export interface GenerationSession {
     originalCapturedImage: GeneratedImage | null;
     revisionHistory: RevisionNode[];
     currentRevisionId: string | null;
+    isReplicaApproved: boolean;
 }
 
 export const saveGenerationSession = (session: GenerationSession) => {
@@ -21,7 +22,14 @@ export const loadGenerationSession = (): GenerationSession | null => {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     try {
-        return JSON.parse(raw) as GenerationSession;
+        const parsed = JSON.parse(raw) as Partial<GenerationSession>;
+        return {
+            generatedImage: parsed.generatedImage as GeneratedImage,
+            originalCapturedImage: parsed.originalCapturedImage ?? null,
+            revisionHistory: parsed.revisionHistory ?? [],
+            currentRevisionId: parsed.currentRevisionId ?? null,
+            isReplicaApproved: parsed.isReplicaApproved ?? false,
+        };
     } catch {
         return null;
     }

@@ -1,9 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnnotationEditor } from '../components/AnnotationEditor';
-import { PreviewModal } from '../components/PreviewModal';
 import { GeneratedImage, RevisionNode } from '../types/landscape';
 import {
     clearGenerationSession,
@@ -17,8 +16,6 @@ const EditorPage = () => {
     const [originalCapturedImage, setOriginalCapturedImage] = useState<GeneratedImage | null>(null);
     const [revisionHistory, setRevisionHistory] = useState<RevisionNode[]>([]);
     const [currentRevisionId, setCurrentRevisionId] = useState<string | null>(null);
-    const [showPreview, setShowPreview] = useState(true);
-    const [showEditor, setShowEditor] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -45,6 +42,7 @@ const EditorPage = () => {
             originalCapturedImage,
             revisionHistory: next.revisionHistory,
             currentRevisionId: next.currentRevisionId,
+            isReplicaApproved: true,
         });
     }, [originalCapturedImage]);
 
@@ -73,8 +71,6 @@ const EditorPage = () => {
         });
         setRevisionHistory(updatedHistory);
         setCurrentRevisionId(newRevisionId);
-        setShowEditor(false);
-        setShowPreview(true);
 
         persistSession({
             generatedImage: {
@@ -96,8 +92,6 @@ const EditorPage = () => {
             mimeType: revision.mimeType,
         });
         setCurrentRevisionId(revisionId);
-        setShowEditor(false);
-        setShowPreview(true);
 
         persistSession({
             generatedImage: {
@@ -115,12 +109,18 @@ const EditorPage = () => {
         setOriginalCapturedImage(null);
         setRevisionHistory([]);
         setCurrentRevisionId(null);
-        setShowPreview(false);
-        setShowEditor(false);
         setLoadError('Session cleared. Go back to the map page to start a new design.');
     }, []);
 
-    const hasData = useMemo(() => !!generatedImage, [generatedImage]);
+    const handleDownload = useCallback(() => {
+        if (!generatedImage) return;
+        const link = document.createElement('a');
+        link.href = `data:${generatedImage.mimeType};base64,${generatedImage.image}`;
+        link.download = `landscape-map-${Date.now()}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }, [generatedImage]);
 
     if (loadError) {
         return (
@@ -144,89 +144,37 @@ const EditorPage = () => {
                             className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
                         >
                             Clear Session
-                        </button>
-                    </div>
-                </div>
+                </button>
+            </div>
+            </div>
             </div>
         );
     }
 
-    if (!hasData) {
+    if (!generatedImage) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black">
                 <div className="rounded-lg bg-white p-8 shadow-lg dark:bg-zinc-900">
                     <div className="text-sm text-zinc-600 dark:text-zinc-400">
                         Loading design...
                     </div>
-                </div>
+            </div>
             </div>
         );
     }
 
     return (
         <div className="relative min-h-screen bg-zinc-900">
-            <div className="flex items-center justify-between px-4 py-3 bg-zinc-950/80 backdrop-blur-sm border-b border-zinc-800">
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => router.push('/')}
-                        className="rounded-lg bg-zinc-800 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700"
-                    >
-                        Back to Map
-                    </button>
-                    <button
-                        onClick={() => setShowPreview(true)}
-                        className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-                    >
-                        View Preview
-                    </button>
-                    <button
-                        onClick={() => { setShowPreview(false); setShowEditor(true); }}
-                        className="rounded-lg bg-amber-500 px-3 py-2 text-sm font-medium text-white hover:bg-amber-600"
-                    >
-                        Open Annotator
-                    </button>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={handleClearSession}
-                        className="rounded-lg bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-700"
-                    >
-                        Clear Session
-                    </button>
-                </div>
-            </div>
-
-            {showPreview && generatedImage && (
-                <PreviewModal
-                    generatedImage={generatedImage}
-                    originalCapturedImage={originalCapturedImage}
-                    revisionHistory={revisionHistory}
-                    currentRevisionId={currentRevisionId}
-                    onClose={() => setShowPreview(false)}
-                    onEdit={() => { setShowPreview(false); setShowEditor(true); }}
-                    onDownload={() => {
-                        const link = document.createElement('a');
-                        link.href = `data:${generatedImage.mimeType};base64,${generatedImage.image}`;
-                        link.download = `landscape-map-${Date.now()}.png`;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                    }}
-                    onSwitchRevision={switchToRevision}
-                />
-            )}
-
-            {showEditor && generatedImage && (
-                <AnnotationEditor
-                    generatedImage={generatedImage}
-                    onCancel={() => { setShowEditor(false); setShowPreview(true); }}
-                    onRevisionComplete={handleRevisionComplete}
-                    onError={(message) => setErrorMessage(message)}
-                />
-            )}
+            <AnnotationEditor
+                generatedImage={generatedImage}
+                originalCapturedImage={originalCapturedImage}
+                onCancel={() => { router.push('/'); }}
+                onRevisionComplete={handleRevisionComplete}
+                onError={(message) => setErrorMessage(message)}
+            />
 
             {errorMessage && (
-                <div className="fixed top-4 right-4 max-w-md rounded-lg bg-red-100 p-4 shadow-lg dark:bg-red-900">
+                <div className="fixed top-20 right-4 max-w-md rounded-lg bg-red-100 p-4 shadow-lg dark:bg-red-900">
                     <div className="flex items-start gap-3">
                         <div className="flex-1">
                             <p className="text-sm font-medium text-red-800 dark:text-red-200">
@@ -245,7 +193,7 @@ const EditorPage = () => {
                             </svg>
                         </button>
                     </div>
-                </div>
+            </div>
             )}
         </div>
     );

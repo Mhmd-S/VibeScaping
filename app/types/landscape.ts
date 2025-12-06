@@ -28,6 +28,7 @@ export interface Annotation {
     text: string;
     color: string;
     isEditing: boolean;
+    labelOffset?: Point;
 }
 
 export interface RevisionNode {

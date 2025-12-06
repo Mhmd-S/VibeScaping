@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import { useRouter } from 'next/navigation';
 import html2canvas from 'html2canvas';
 import { useCurrentLocation } from './hooks/useCurrentLocation';
 import { usePolygonDrawing } from './hooks/usePolygonDrawing';
 import { saveGenerationSession } from './utils/generationSession';
+import { Location } from './types/landscape';
 
 const mapContainerStyle = {
     width: '100%',
@@ -14,6 +15,10 @@ const mapContainerStyle = {
 };
 
 const defaultZoom = 15;
+const fallbackCenter: Location = {
+    lat: 37.0902,
+    lng: -95.7129,
+};
 
 const Home = () => {
     const router = useRouter();
@@ -21,6 +26,10 @@ const Home = () => {
     const [isMapLoaded, setIsMapLoaded] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [generateError, setGenerateError] = useState<string | null>(null);
+    const [mapCenter, setMapCenter] = useState<Location | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchError, setSearchError] = useState<string | null>(null);
 
     const {
         mapRef,
@@ -32,9 +41,17 @@ const Home = () => {
         clearPolygon,
         onMapLoad,
         hidePolygonOverlays,
+        setPolygonPath,
     } = usePolygonDrawing();
+    const geocoderRef = useRef<google.maps.Geocoder | null>(null);
 
     const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+
+    useEffect(() => {
+        if (location && !mapCenter) {
+            setMapCenter(location);
+        }
+    }, [location, mapCenter]);
 
     const captureImage = useCallback(async () => {
         if (!mapRef.current || !drawnPolygon || polygonPath.length === 0) {
@@ -68,6 +85,43 @@ const Home = () => {
             await new Promise((resolve) => setTimeout(resolve, 1000));
 
             const restoreOverlays = hidePolygonOverlays();
+
+            const waitForMapRender = () => new Promise<void>((resolve) => {
+                if (!mapRef.current) {
+                    resolve();
+                    return;
+                }
+
+                let resolved = false;
+                const timeoutId = setTimeout(() => {
+                    if (resolved) return;
+                    resolved = true;
+                    resolve();
+                }, 300);
+
+                google.maps.event.addListenerOnce(mapRef.current, 'idle', () => {
+                    if (resolved) return;
+                    resolved = true;
+                    clearTimeout(timeoutId);
+                    resolve();
+                });
+
+                requestAnimationFrame(() => {
+                    if (resolved) return;
+                    resolved = true;
+                    clearTimeout(timeoutId);
+                    resolve();
+                });
+            });
+
+            const waitForNextPaint = () => new Promise<void>((resolve) => {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => resolve());
+                });
+            });
+
+            await waitForMapRender();
+            await waitForNextPaint();
 
             let canvas: HTMLCanvasElement | null = null;
             try {
@@ -125,6 +179,53 @@ const Home = () => {
             const minY = Math.min(...pixelPoints.map((p) => p.y));
             const maxY = Math.max(...pixelPoints.map((p) => p.y));
 
+            const computeDominantAxisAngle = (points: { x: number; y: number }[]): number => {
+                if (points.length < 2) return 0;
+
+                const meanX = points.reduce((sum, p) => sum + p.x, 0) / points.length;
+                const meanY = points.reduce((sum, p) => sum + p.y, 0) / points.length;
+
+                let sxx = 0;
+                let syy = 0;
+                let sxy = 0;
+
+                points.forEach((p) => {
+                    const dx = p.x - meanX;
+                    const dy = p.y - meanY;
+                    sxx += dx * dx;
+                    syy += dy * dy;
+                    sxy += dx * dy;
+                });
+
+                const angleRad = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+                return (angleRad * 180) / Math.PI;
+            };
+
+            const rotateCanvas = (source: HTMLCanvasElement, angleDeg: number) => {
+                if (!angleDeg) return source;
+
+                const angleRad = (angleDeg * Math.PI) / 180;
+                const sin = Math.abs(Math.sin(angleRad));
+                const cos = Math.abs(Math.cos(angleRad));
+
+                const newWidth = Math.ceil(source.width * cos + source.height * sin);
+                const newHeight = Math.ceil(source.height * cos + source.width * sin);
+
+                const rotated = document.createElement('canvas');
+                rotated.width = newWidth;
+                rotated.height = newHeight;
+                const ctx = rotated.getContext('2d');
+                if (!ctx) {
+                    return source;
+                }
+
+                ctx.translate(newWidth / 2, newHeight / 2);
+                ctx.rotate(angleRad);
+                ctx.drawImage(source, -source.width / 2, -source.height / 2);
+
+                return rotated;
+            };
+
             const croppedCanvas = document.createElement('canvas');
             const croppedWidth = maxX - minX;
             const croppedHeight = maxY - minY;
@@ -155,7 +256,10 @@ const Home = () => {
             );
             croppedCtx.restore();
 
-            const dataUrl = croppedCanvas.toDataURL('image/png');
+            const dominantAngle = computeDominantAxisAngle(pixelPoints);
+            const rotatedCanvas = rotateCanvas(croppedCanvas, -dominantAngle);
+
+            const dataUrl = rotatedCanvas.toDataURL('image/png');
             const base64 = dataUrl.split(',')[1];
 
             const response = await fetch('/api/generate-landscape', {
@@ -205,6 +309,7 @@ const Home = () => {
                     },
                 ],
                 currentRevisionId: rootRevisionId,
+                isReplicaApproved: false,
             });
 
             router.push('/editor');
@@ -217,7 +322,96 @@ const Home = () => {
 
     const handleClearPolygon = useCallback(() => {
         clearPolygon();
-    }, [clearPolygon]);
+        setPolygonPath([]);
+    }, [clearPolygon, setPolygonPath]);
+
+    const handleMapLoad = useCallback((map: google.maps.Map) => {
+        onMapLoad(map);
+        geocoderRef.current = new google.maps.Geocoder();
+        const center = mapCenter || location;
+        if (center) {
+            map.panTo(center);
+        }
+    }, [mapCenter, onMapLoad, location]);
+
+    const parseCoordinates = useCallback((value: string): Location | null => {
+        const trimmed = value.trim();
+        const coordMatch = trimmed.match(/^(-?\d+(\.\d+)?)[,\s]+(-?\d+(\.\d+)?)$/);
+        if (!coordMatch) return null;
+        const lat = parseFloat(coordMatch[1]);
+        const lng = parseFloat(coordMatch[3]);
+        if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+        return { lat, lng };
+    }, []);
+
+    const searchAddress = useCallback(async () => {
+        if (isGenerating) {
+            setSearchError('Landscape generation in progress. Please wait.');
+            return;
+        }
+
+        const query = searchQuery.trim();
+        if (!query) {
+            setSearchError('Please enter an address to search.');
+            return;
+        }
+
+        setIsSearching(true);
+        setSearchError(null);
+
+        try {
+            const directCoords = parseCoordinates(query);
+            if (directCoords) {
+                setMapCenter(directCoords);
+                if (mapRef.current) {
+                    mapRef.current.panTo(directCoords);
+                    mapRef.current.setZoom(17);
+                }
+                return;
+            }
+
+            if (!geocoderRef.current) {
+                setSearchError('Map is still loading. Please wait a moment.');
+                return;
+            }
+
+            const results = await new Promise<google.maps.GeocoderResult[]>((resolve, reject) => {
+                geocoderRef.current?.geocode({ address: query }, (geocodeResults, status) => {
+                    if (status === 'OK' && geocodeResults) {
+                        resolve(geocodeResults);
+                        return;
+                    }
+                    if (status === 'ZERO_RESULTS') {
+                        reject(new Error('No results found for that address.'));
+                        return;
+                    }
+                    reject(new Error(`Geocoding failed: ${status || 'UNKNOWN_ERROR'}. Ensure Geocoding API is enabled for your key.`));
+                });
+            });
+
+            if (!results || results.length === 0) {
+                setSearchError('No results found for that address.');
+                return;
+            }
+
+            const resultLocation = results[0].geometry.location;
+            const nextCenter: Location = {
+                lat: resultLocation.lat(),
+                lng: resultLocation.lng(),
+            };
+
+            setMapCenter(nextCenter);
+            if (mapRef.current) {
+                mapRef.current.panTo(nextCenter);
+                mapRef.current.setZoom(17);
+            }
+        } catch (searchErr) {
+            setSearchError(searchErr instanceof Error ? searchErr.message : 'Unable to find that address.');
+        } finally {
+            setIsSearching(false);
+        }
+    }, [isGenerating, searchQuery, mapRef]);
 
     if (!googleMapsApiKey) {
         return (
@@ -234,112 +428,150 @@ const Home = () => {
         );
     }
 
-    if (loading) {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-                <div className="text-center">
-                    <div className="mb-4 text-lg font-medium text-black dark:text-zinc-50">
-                        Detecting your location...
-                    </div>
-                    <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                        Please allow location access when prompted
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-                <div className="rounded-lg bg-white p-8 shadow-lg dark:bg-zinc-900">
-                    <h2 className="mb-4 text-xl font-semibold text-red-600 dark:text-red-400">
-                        Location Error
-                    </h2>
-                    <p className="text-zinc-600 dark:text-zinc-400">{error}</p>
-                </div>
-            </div>
-        );
-    }
+    const activeCenter = mapCenter || location || fallbackCenter;
+    const markerPosition = mapCenter || location;
 
     return (
         <div className="relative min-h-screen w-full">
             <LoadScript
                 googleMapsApiKey={googleMapsApiKey}
-                libraries={['geometry']}
+                libraries={['geometry', 'places']}
                 onLoad={() => setIsMapLoaded(true)}
             >
-                {isMapLoaded && location && (
+                {isMapLoaded && (
                     <GoogleMap
                         mapContainerStyle={mapContainerStyle}
-                        center={location}
+                        center={activeCenter}
                         zoom={defaultZoom}
-                        onLoad={onMapLoad}
+                        onLoad={handleMapLoad}
                         options={{
                             tilt: 0,
                             mapTypeId: 'satellite',
                             mapTypeControl: false,
                             fullscreenControl: false,
-                            rotateControl: false,
+                            rotateControl: true,
                             streetViewControl: false,
-                            zoomControl: false,
+                            zoomControl: true,
                         }}
                     >
-                        <Marker
-                            position={location}
-                            title="Your Current Location"
-                        />
+                        {markerPosition && (
+                            <Marker
+                                position={markerPosition}
+                                title="Selected Location"
+                            />
+                        )}
                     </GoogleMap>
                 )}
             </LoadScript>
 
-            {location && (
-                <>
-                    <div className="absolute bottom-4 left-4 rounded-lg bg-white p-4 shadow-lg dark:bg-zinc-900">
-                        <div className="text-sm font-medium text-black dark:text-zinc-50">
-                            Current Location
-                        </div>
-                        <div className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-                            Lat: {location.lat.toFixed(6)}, Lng: {location.lng.toFixed(6)}
-                        </div>
-                    </div>
-                    <div className="absolute top-4 left-4 flex flex-col gap-2">
-                        <button
-                            onClick={toggleDrawingMode}
-                            className={`rounded-lg px-4 py-2 text-sm font-medium shadow-lg transition-colors ${
-                                isDrawingMode
-                                    ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600'
-                                    : 'bg-white text-black hover:bg-zinc-100 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800'
-                            }`}
-                        >
-                            {isDrawingMode ? 'Stop Drawing' : 'Start Freehand Drawing'}
-                        </button>
-                        {isDrawingMode && (
-                            <div className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                {isDrawing
-                                    ? 'Move mouse to draw. Click near the green dot to close, or click anywhere to finish'
-                                    : 'Click to start drawing, then move mouse'}
+            <div className="pointer-events-none absolute left-0 right-0 top-3 z-10 px-4 sm:top-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="pointer-events-auto w-full rounded-xl bg-white/95 p-4 shadow-lg backdrop-blur dark:bg-zinc-900/95 sm:max-w-lg lg:max-w-xl">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                                    Choose a location
+                                </p>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                    Search by address or use your current location
+                                </p>
                             </div>
-                        )}
-                        {drawnPolygon && (
-                            <>
+                            {loading && (
+                                <span className="text-xs text-blue-600 dark:text-blue-300">
+                                    Detecting location...
+                                </span>
+                            )}
+                        </div>
+                        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <input
+                                value={searchQuery}
+                                onChange={(event) => setSearchQuery(event.target.value)}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Enter') {
+                                        event.preventDefault();
+                                        searchAddress();
+                                    }
+                                }}
+                                disabled={isGenerating}
+                                placeholder="Enter an address, city, or coordinates"
+                                className="w-full flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-blue-400 dark:focus:ring-blue-900"
+                            />
+                            <div className="flex flex-col gap-2 sm:flex-row">
                                 <button
-                                    onClick={handleClearPolygon}
-                                    className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black shadow-lg transition-colors hover:bg-zinc-100 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+                                    onClick={searchAddress}
+                                    disabled={isSearching || isGenerating}
+                                    className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-blue-500 dark:hover:bg-blue-600"
                                 >
-                                    Clear Area
+                                    {isSearching ? 'Searching...' : 'Find'}
                                 </button>
-                                <button
-                                    onClick={captureImage}
-                                    disabled={isGenerating}
-                                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-lg transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
-                                >
-                                    {isGenerating ? 'Generating...' : 'Generate Landscape Map'}
-                                </button>
-                            </>
+                            </div>
+                        </div>
+                        {(searchError || error) && (
+                            <div className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-900/50 dark:text-red-200">
+                                {searchError || error}
+                            </div>
                         )}
                     </div>
 
+                    <div
+                        className={`
+                            pointer-events-auto w-full rounded-xl bg-white/95 p-4 shadow-lg backdrop-blur dark:bg-zinc-900/95 sm:max-w-sm md:w-80 md:shrink-0
+                            fixed bottom-0 left-4 right-4 z-20
+                            sm:relative sm:bottom-auto sm:left-auto sm:right-auto sm:z-auto
+                            ${isGenerating ? "pointer-events-none opacity-80" : ""}
+                        `}
+                        style={{
+                            // Only add maxWidth on sm and up, else use full width
+                            maxWidth: undefined,
+                        }}
+                    >
+                        <div className="flex items-center justify-between">
+                            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                                Select Area
+                            </p>
+                            {drawnPolygon && (
+                                <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-300">
+                                    Area ready
+                                </span>
+                            )}
+                        </div>
+                        <div className="mt-3 flex flex-col gap-2">
+                            <button
+                                onClick={drawnPolygon ? captureImage : toggleDrawingMode}
+                                disabled={drawnPolygon ? isGenerating : false}
+                                className={`rounded-lg px-4 py-2 text-sm font-medium shadow transition-colors ${
+                                    drawnPolygon
+                                        ? 'bg-blue-600 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600'
+                                        : isDrawingMode
+                                            ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600'
+                                            : 'bg-white text-black hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700'
+                                }`}
+                            >
+                                {drawnPolygon
+                                    ? (isGenerating ? 'Generating...' : 'Generate Landscape Map')
+                                    : (isDrawingMode ? 'Stop Drawing' : 'Start Freehand Drawing')}
+                            </button>
+                            {isDrawingMode && (
+                                <div className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                    {isDrawing
+                                        ? 'Move mouse to draw. Click near the green dot to close, or click anywhere to finish'
+                                        : 'Click to start drawing, then move mouse'}
+                                </div>
+                            )}
+                            <button
+                                onClick={handleClearPolygon}
+                                disabled={!drawnPolygon}
+                                className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black shadow transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
+                            >
+                                Clear Area
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {isMapLoaded && (
+                <>
                     {generateError && (
                         <div className="absolute top-4 right-4 max-w-md rounded-lg bg-red-100 p-4 shadow-lg dark:bg-red-900">
                             <div className="flex items-start gap-3">
@@ -373,7 +605,7 @@ const Home = () => {
                                             Generating Landscape Map
                                         </p>
                                         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                                            Nano Banana Pro is creating your landscape architecture map...
+                                            Processing...
                                         </p>
                                     </div>
                                 </div>
