@@ -39,9 +39,7 @@ export async function POST(request: NextRequest) {
             revisionNotes,
             referenceOriginalImageBase64,
             referenceOriginalMimeType,
-            revisionMode,
         } = await request.json();
-        const isRefinementRequest = revisionMode === 'refinement';
 
         if (!imageBase64) {
             return NextResponse.json({ error: 'No image provided' }, { status: 400 });
@@ -73,20 +71,13 @@ export async function POST(request: NextRequest) {
         let prompt: string;
 
         if (isRevision && revisionNotes && revisionNotes.length > 0) {
-            // Revision prompt with user's annotations
-            const annotationsList = revisionNotes
-                .map((note: string, i: number) => `${i + 1}. ${note}`)
-                .join('\n');
+            prompt = `The user has marked areas with annotations in red indicating what changes they want. Please revise the landscape map according to these requested changes:
 
-            const refinementPrefix = referenceOriginalImageBase64 || isRefinementRequest
-                ? 'Refine the generated landscape so it more closely matches the provided real reference image. Use the highlights and notes to align shapes, materials, and placement with the real map while keeping the overall style consistent.'
-                : 'This is a landscape architecture map that needs revisions.';
-
-            prompt = `${refinementPrefix} The user has marked areas with annotations in red indicating what changes they want. Please revise the landscape map according to these requested changes:
-
-${annotationsList}
-
-Generate a new version of this landscape architecture map incorporating all the requested changes. Maintain the same overall style and quality, align with the included reference landscape style images, and apply the specific modifications indicated. Do not include any text or annotations in the output image.`;
+            Generate a new version of this landscape architecture map incorporating all the requested changes. 
+            
+            Maintain the same overall style and quality, align with the included reference landscape style images, and apply the specific modifications indicated. Do not include any text and annotations in the output image.
+            
+            Do not rotate, scale, or distort the image.`;
         } else {
             // Initial generation prompt
             prompt =

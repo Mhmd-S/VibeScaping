@@ -14,7 +14,7 @@ export interface GeneratedImage {
     description?: string;
 }
 
-export type AnnotationTool = 'select' | 'circle' | 'rectangle' | 'line' | 'arrow' | 'freehand';
+export type AnnotationTool = 'select' | 'freehand';
 
 export interface Point {
     x: number;
@@ -29,6 +29,10 @@ export interface Annotation {
     color: string;
     isEditing: boolean;
     labelOffset?: Point;
+    labelSize?: {
+        width: number;
+        height: number;
+    };
 }
 
 export interface RevisionNode {
