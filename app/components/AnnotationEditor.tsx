@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Stage, Layer, Image as KonvaImage, Group, Arrow } from "react-konva";
 import Konva from "konva";
+import { Eye, EyeOff, X } from "lucide-react";
 import {
-    Annotation,
-    AnnotationTool,
-    GeneratedImage,
-    Point,
-    RevisionNode,
+  Annotation,
+  AnnotationTool,
+  GeneratedImage,
+  Point,
+  RevisionNode,
 } from "../types/landscape";
 import { useImage } from "../hooks/useImage";
 import {
@@ -19,7 +20,10 @@ import {
   getShapeConnectionPoint,
   getLabelConnectionPoint,
 } from "../utils/annotationHelpers";
-import { renderAnnotationShape, renderCurrentDrawing } from "../utils/annotationRenderers";
+import {
+  renderAnnotationShape,
+  renderCurrentDrawing,
+} from "../utils/annotationRenderers";
 import { TextLabel } from "./annotation/TextLabel";
 import { AnnotationToolbar } from "./annotation/AnnotationToolbar";
 import { AnnotationHeader } from "./annotation/AnnotationHeader";
@@ -40,60 +44,65 @@ interface AnnotationEditorProps {
 }
 
 export const AnnotationEditor = ({
-    generatedImage,
-    originalCapturedImage,
-    onCancel,
-    onRevisionComplete,
-    onError,
+  generatedImage,
+  originalCapturedImage,
+  onCancel,
+  onRevisionComplete,
+  onError,
 }: AnnotationEditorProps) => {
-    const [annotations, setAnnotations] = useState<Annotation[]>([]);
-    const [currentTool, setCurrentTool] = useState<AnnotationTool>("freehand");
-    const annotationColor = "#ef4444";
-    const [isAnnotationDrawing, setIsAnnotationDrawing] = useState(false);
-    const [currentAnnotationPoints, setCurrentAnnotationPoints] = useState<Point[]>([]);
-    const [isRevising, setIsRevising] = useState(false);
-    const [imageZoom, setImageZoom] = useState(1);
-    const [imageRotation, setImageRotation] = useState(0);
-    const [generatedSize, setGeneratedSize] = useState<{
-        width: number;
-        height: number;
-    } | null>(null);
-    const [referenceSize, setReferenceSize] = useState<{
-        width: number;
-        height: number;
-    } | null>(null);
-    const [showOriginalReference, setShowOriginalReference] = useState(
-        !!originalCapturedImage
-    );
-    const [activeImage, setActiveImage] = useState<GeneratedImage>(
-        generatedImage
-    );
-    const [revisionHistory, setRevisionHistory] = useState<RevisionNode[]>([]);
-    const lastRevisionImageRef = useRef<string | null>(null);
-    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-    const [selectedLabelId, setSelectedLabelId] = useState<string | null>(null);
-    const [editingTextArea, setEditingTextArea] = useState<{
-        id: string;
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-    } | null>(null);
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [currentTool, setCurrentTool] = useState<AnnotationTool>("freehand");
+  const annotationColor = "#ef4444";
+  const [isAnnotationDrawing, setIsAnnotationDrawing] = useState(false);
+  const [currentAnnotationPoints, setCurrentAnnotationPoints] = useState<
+    Point[]
+  >([]);
+  const [isRevising, setIsRevising] = useState(false);
+  const [imageZoom, setImageZoom] = useState(1);
+  const [imageRotation, setImageRotation] = useState(0);
+  const [generatedSize, setGeneratedSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const [referenceSize, setReferenceSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const [showOriginalReference, setShowOriginalReference] = useState(
+    !!originalCapturedImage
+  );
+  const [activeImage, setActiveImage] =
+    useState<GeneratedImage>(generatedImage);
+  const [revisionHistory, setRevisionHistory] = useState<RevisionNode[]>([]);
+  const lastRevisionImageRef = useRef<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedLabelId, setSelectedLabelId] = useState<string | null>(null);
+  const [editingTextArea, setEditingTextArea] = useState<{
+    id: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const [showFreehandInstructions, setShowFreehandInstructions] = useState(true);
 
-    const stageRef = useRef<Konva.Stage | null>(null);
-    const layerRef = useRef<Konva.Layer | null>(null);
-    const mainScrollRef = useRef<HTMLDivElement | null>(null);
-    const referenceScrollRef = useRef<HTMLDivElement | null>(null);
-    const isSyncingScrollRef = useRef(false);
-    const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-    const isClosingTextareaRef = useRef(false);
+  const stageRef = useRef<Konva.Stage | null>(null);
+  const layerRef = useRef<Konva.Layer | null>(null);
+  const mainScrollRef = useRef<HTMLDivElement | null>(null);
+  const referenceScrollRef = useRef<HTMLDivElement | null>(null);
+  const isSyncingScrollRef = useRef(false);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const isClosingTextareaRef = useRef(false);
 
-    // Load the main image
-    const imageSrc = useMemo(() => 
-        activeImage?.image ? `data:${activeImage.mimeType};base64,${activeImage.image}` : "",
-        [activeImage]
-    );
-    const konvaImage = useImage(imageSrc);
+  // Load the main image
+  const imageSrc = useMemo(
+    () =>
+      activeImage?.image
+        ? `data:${activeImage.mimeType};base64,${activeImage.image}`
+        : "",
+    [activeImage]
+  );
+  const konvaImage = useImage(imageSrc);
 
   const handleLabelDragEnd = useCallback((id: string, x: number, y: number) => {
     setAnnotations((prev) =>
@@ -120,42 +129,45 @@ export const AnnotationEditor = ({
     []
   );
 
-  const handleLabelDoubleClick = useCallback((id: string) => {
-    // Clear any existing selection to prevent conflicts
-    setSelectedLabelId(null);
-    
-    // Small delay to let the selection clear
-    requestAnimationFrame(() => {
-      const ann = annotations.find((a) => a.id === id);
-      if (!ann || !stageRef.current) return;
+  const handleLabelDoubleClick = useCallback(
+    (id: string) => {
+      // Clear any existing selection to prevent conflicts
+      setSelectedLabelId(null);
 
-      const anchor = getAnnotationAnchorPoint(ann);
-      const labelSize = ann.labelSize || {
-        width: DEFAULT_LABEL_WIDTH,
-        height: DEFAULT_LABEL_HEIGHT,
-      };
+      // Small delay to let the selection clear
+      requestAnimationFrame(() => {
+        const ann = annotations.find((a) => a.id === id);
+        if (!ann || !stageRef.current) return;
 
-      // Calculate position relative to the stage
-      const scale = imageZoom;
+        const anchor = getAnnotationAnchorPoint(ann);
+        const labelSize = ann.labelSize || {
+          width: DEFAULT_LABEL_WIDTH,
+          height: DEFAULT_LABEL_HEIGHT,
+        };
 
-      // Position the textarea
-      setEditingTextArea({
-        id: ann.id,
-        x: anchor.x * scale,
-        y: anchor.y * scale,
-        width: labelSize.width * scale,
-        height: labelSize.height * scale,
+        // Calculate position relative to the stage
+        const scale = imageZoom;
+
+        // Position the textarea
+        setEditingTextArea({
+          id: ann.id,
+          x: anchor.x * scale,
+          y: anchor.y * scale,
+          width: labelSize.width * scale,
+          height: labelSize.height * scale,
+        });
+
+        // Focus after a brief delay to ensure textarea is rendered
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.focus();
+            textareaRef.current.select();
+          }
+        }, 50);
       });
-
-      // Focus after a brief delay to ensure textarea is rendered
-      setTimeout(() => {
-        if (textareaRef.current) {
-          textareaRef.current.focus();
-          textareaRef.current.select();
-        }
-      }, 50);
-    });
-  }, [annotations, imageZoom]);
+    },
+    [annotations, imageZoom]
+  );
 
   const handleTextareaBlur = useCallback(() => {
     isClosingTextareaRef.current = true;
@@ -213,27 +225,29 @@ export const AnnotationEditor = ({
 
       const target = e.target;
       const stage = target.getStage();
-      
+
       // Check what we clicked on
       const targetType = target.getType();
       const parentType = target.parent?.getType();
-      
+
       // Check if we clicked on a text label or its components
-      const isLabelGroup = targetType === 'Group' && parentType === 'Layer';
-      const isLabelChild = (targetType === 'Rect' || targetType === 'Text') && parentType === 'Group';
+      const isLabelGroup = targetType === "Group" && parentType === "Layer";
+      const isLabelChild =
+        (targetType === "Rect" || targetType === "Text") &&
+        parentType === "Group";
       const clickedOnLabel = isLabelGroup || isLabelChild;
-      
+
       // Check if clicked on transformer
-      const clickedOnTransformer = targetType === 'Transformer';
-      
+      const clickedOnTransformer = targetType === "Transformer";
+
       // Deselect labels when clicking on the image or stage
-      if (targetType === 'Image' || target === stage) {
+      if (targetType === "Image" || target === stage) {
         setSelectedLabelId(null);
       }
 
       // Don't handle drawing if select tool is active
       if (currentTool === "select") return;
-      
+
       // Don't handle drawing if we clicked on a label or transformer
       if (clickedOnLabel || clickedOnTransformer) {
         return;
@@ -269,7 +283,7 @@ export const AnnotationEditor = ({
             },
           };
           setAnnotations((prev) => [...prev, newAnnotation]);
-          
+
           // Automatically open the text editor for the new annotation
           setTimeout(() => {
             handleLabelDoubleClick(newAnnotation.id);
@@ -280,7 +294,13 @@ export const AnnotationEditor = ({
         setCurrentAnnotationPoints([]);
       }
     },
-    [currentTool, isAnnotationDrawing, currentAnnotationPoints, annotationColor, handleLabelDoubleClick]
+    [
+      currentTool,
+      isAnnotationDrawing,
+      currentAnnotationPoints,
+      annotationColor,
+      handleLabelDoubleClick,
+    ]
   );
 
   const handleStageMouseMove = useCallback(
@@ -296,18 +316,18 @@ export const AnnotationEditor = ({
       // Add points continuously as mouse moves (without holding button down)
       setCurrentAnnotationPoints((prev) => {
         if (prev.length === 0) return [{ x: pos.x, y: pos.y }];
-        
+
         // Calculate distance from last point to avoid adding too many points
         const lastPoint = prev[prev.length - 1];
         const distance = Math.sqrt(
           Math.pow(pos.x - lastPoint.x, 2) + Math.pow(pos.y - lastPoint.y, 2)
         );
-        
+
         // Only add point if it's far enough from the last one (reduces noise)
         if (distance > 2) {
           return [...prev, { x: pos.x, y: pos.y }];
         }
-        
+
         return prev;
       });
     },
@@ -322,14 +342,14 @@ export const AnnotationEditor = ({
           const tempText = new Konva.Text({
             text: text,
             fontSize: 14,
-            fontFamily: 'system-ui, -apple-system, sans-serif',
+            fontFamily: "system-ui, -apple-system, sans-serif",
             width: (ann.labelSize?.width || DEFAULT_LABEL_WIDTH) - 24,
-            wrap: 'word',
+            wrap: "word",
           });
-          
+
           const textHeight = tempText.height();
           const newHeight = Math.max(36, textHeight + 24);
-          
+
           return {
             ...ann,
             text,
@@ -379,9 +399,13 @@ export const AnnotationEditor = ({
         setCurrentAnnotationPoints([]);
         return;
       }
-      
+
       // Delete selected annotation with Delete or Backspace key
-      if ((e.key === "Delete" || e.key === "Backspace") && selectedLabelId && !editingTextArea) {
+      if (
+        (e.key === "Delete" || e.key === "Backspace") &&
+        selectedLabelId &&
+        !editingTextArea
+      ) {
         e.preventDefault();
         deleteAnnotation(selectedLabelId);
       }
@@ -398,9 +422,9 @@ export const AnnotationEditor = ({
     };
   }, [selectedLabelId, editingTextArea, deleteAnnotation, isAnnotationDrawing]);
 
-    useEffect(() => {
-        setActiveImage(generatedImage);
-    }, [generatedImage]);
+  useEffect(() => {
+    setActiveImage(generatedImage);
+  }, [generatedImage]);
 
   useEffect(() => {
     // Start each new generated image with a clean slate of annotations
@@ -408,126 +432,216 @@ export const AnnotationEditor = ({
     setCurrentAnnotationPoints([]);
   }, [generatedImage]);
 
-    useEffect(() => {
-        if (!activeImage?.image) return;
-        if (lastRevisionImageRef.current === activeImage.image) return;
-        setRevisionHistory((prev) => {
-            const parentId = prev.length ? prev[prev.length - 1].id : null;
-            const label =
-                prev.length === 0 ? "Initial image" : `Revision ${prev.length}`;
-            const next: RevisionNode = {
-                id: `rev-${Date.now()}`,
-                parentId,
-                image: activeImage.image,
-                mimeType: activeImage.mimeType,
-                annotations: [],
-                timestamp: Date.now(),
-                label,
-            };
-            return [...prev, next];
-        });
-        lastRevisionImageRef.current = activeImage.image;
-    }, [activeImage]);
-
-  const referenceScaleBoost = 1.2;
+  useEffect(() => {
+    if (!activeImage?.image) return;
+    if (lastRevisionImageRef.current === activeImage.image) return;
+    setRevisionHistory((prev) => {
+      const parentId = prev.length ? prev[prev.length - 1].id : null;
+      const label =
+        prev.length === 0 ? "Initial image" : `Revision ${prev.length}`;
+      const next: RevisionNode = {
+        id: `rev-${Date.now()}`,
+        parentId,
+        image: activeImage.image,
+        mimeType: activeImage.mimeType,
+        annotations: [],
+        timestamp: Date.now(),
+        label,
+      };
+      return [...prev, next];
+    });
+    lastRevisionImageRef.current = activeImage.image;
+  }, [activeImage]);
 
   const referenceScale = useMemo(() => {
     if (!showOriginalReference || !generatedSize || !referenceSize) return 1;
-    if (referenceSize.width === 0) return 1;
-    return (generatedSize.width / referenceSize.width) * referenceScaleBoost;
+    if (referenceSize.height === 0) return 1;
+    // Scale to match the generated image height while preserving aspect ratio
+    return generatedSize.height / referenceSize.height;
   }, [generatedSize, referenceSize, showOriginalReference]);
 
-    const sendForRevision = useCallback(async () => {
-        if (!activeImage || annotations.length === 0 || !stageRef.current) return;
+  const sendForRevision = useCallback(async () => {
+    if (!activeImage || annotations.length === 0 || !stageRef.current) return;
 
-        setIsRevising(true);
+    setIsRevising(true);
 
-        try {
-            const stage = stageRef.current;
-            
-            // Export the stage as data URL
-            const dataUrl = stage.toDataURL({ pixelRatio: 1 });
-            const base64 = dataUrl.split(",")[1];
+    try {
+      const stage = stageRef.current;
 
-            const annotationTexts = annotations
-                .filter((ann) => ann.text)
-                .map((ann) => ann.text);
+      // Export the stage as data URL
+      const dataUrl = stage.toDataURL({ pixelRatio: 1 });
+      const base64 = dataUrl.split(",")[1];
 
-            const response = await fetch("/api/generate-landscape", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    imageBase64: base64,
-                    mimeType: "image/png",
-                    isRevision: true,
-                    revisionNotes: annotationTexts,
-                    revisionMode: "annotation",
-                }),
-            });
+      const annotationTexts = annotations
+        .filter((ann) => ann.text)
+        .map((ann) => ann.text);
 
-            const data = await response.json();
+      const response = await fetch("/api/generate-landscape", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageBase64: base64,
+          mimeType: "image/png",
+          isRevision: true,
+          revisionNotes: annotationTexts,
+          revisionMode: "annotation",
+        }),
+      });
 
-            if (!response.ok) {
-                throw new Error(
-                    data.details || data.error || "Failed to revise landscape"
-                );
-            }
+      const data = await response.json();
 
-            setRevisionHistory((prev) => {
-                const parentId = prev.length ? prev[prev.length - 1].id : null;
-                const next: RevisionNode = {
-                    id: `rev-${Date.now()}`,
-                    parentId,
-                    image: data.image,
-                    mimeType: data.mimeType,
-                    annotations: annotationTexts,
-                    timestamp: Date.now(),
-                    label: `Revision ${prev.length}`,
-                };
-                return [...prev, next];
-            });
-            lastRevisionImageRef.current = data.image;
-            setActiveImage({
-                image: data.image,
-                mimeType: data.mimeType,
-                description: data.description,
-            });
+      if (!response.ok) {
+        throw new Error(
+          data.details || data.error || "Failed to revise landscape"
+        );
+      }
 
-            onRevisionComplete({
-                image: data.image,
-                mimeType: data.mimeType,
-                description: data.description,
-                annotations: annotationTexts,
-            });
-            setAnnotations([]);
-        } catch (err) {
-            onError(
-                err instanceof Error
-                    ? err.message
-                    : "Failed to revise landscape. Please try again."
-            );
-        } finally {
-            setIsRevising(false);
-        }
-    }, [
-        activeImage,
-        annotations,
-        onRevisionComplete,
-        onError,
-    ]);
+      setRevisionHistory((prev) => {
+        const parentId = prev.length ? prev[prev.length - 1].id : null;
+        const next: RevisionNode = {
+          id: `rev-${Date.now()}`,
+          parentId,
+          image: data.image,
+          mimeType: data.mimeType,
+          annotations: annotationTexts,
+          timestamp: Date.now(),
+          label: `Revision ${prev.length}`,
+        };
+        return [...prev, next];
+      });
+      lastRevisionImageRef.current = data.image;
+      setActiveImage({
+        image: data.image,
+        mimeType: data.mimeType,
+        description: data.description,
+      });
 
-  const applyZoomFactor = useCallback((factor: number) => {
-    setImageZoom((prev) => Math.min(Math.max(prev * factor, 0.25), 4));
-  }, []);
+      onRevisionComplete({
+        image: data.image,
+        mimeType: data.mimeType,
+        description: data.description,
+        annotations: annotationTexts,
+      });
+      setAnnotations([]);
+    } catch (err) {
+      onError(
+        err instanceof Error
+          ? err.message
+          : "Failed to revise landscape. Please try again."
+      );
+    } finally {
+      setIsRevising(false);
+    }
+  }, [activeImage, annotations, onRevisionComplete, onError]);
 
-    const zoomIn = useCallback(() => {
-        applyZoomFactor(1.1);
-    }, [applyZoomFactor]);
+
+  const sendForNewInitialImage = useCallback(async () => {
+    if (!originalCapturedImage) return;
+
+    setIsRevising(true);
+
+  const response = await fetch("/api/generate-landscape", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      imageBase64: originalCapturedImage?.image,
+      mimeType: originalCapturedImage?.mimeType,
+      isRevision: false,
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.details || data.error || "Failed to generate new initial image"
+    );
+  }
+
+  setActiveImage({
+    image: data.image,
+    mimeType: data.mimeType,
+    description: data.description,
+  });
+
+  setIsRevising(false);
+
+  }, [originalCapturedImage, onRevisionComplete, onError]);
+
+  const applyZoomFactor = useCallback(
+    (factor: number, cursorX?: number, cursorY?: number) => {
+      const scrollContainer = mainScrollRef.current;
+      if (!scrollContainer || cursorX === undefined || cursorY === undefined) {
+        // Fallback: just update zoom without cursor tracking
+        setImageZoom((prev) => Math.min(Math.max(prev * factor, 0.25), 4));
+        return;
+      }
+
+      // Get current zoom and scroll
+      const currentZoom = imageZoom;
+      const newZoom = Math.min(
+        Math.max(currentZoom * factor, 0.25),
+        4
+      );
+
+      // Get the scroll container's bounding rect
+      const rect = scrollContainer.getBoundingClientRect();
+      
+      // Calculate cursor position relative to scroll container
+      const containerX = cursorX - rect.left;
+      const containerY = cursorY - rect.top;
+
+      // Calculate the point in the image space before zoom
+      // Account for padding (p-3 = 12px)
+      const padding = 12;
+      const imageX = (containerX + scrollContainer.scrollLeft - padding) / currentZoom;
+      const imageY = (containerY + scrollContainer.scrollTop - padding) / currentZoom;
+
+      // Update zoom
+      setImageZoom(newZoom);
+
+      // Calculate new scroll position to keep cursor point in same visual position
+      // Use requestAnimationFrame to ensure zoom state has updated
+      requestAnimationFrame(() => {
+        if (!scrollContainer) return;
+        const newScrollLeft = imageX * newZoom + padding - containerX;
+        const newScrollTop = imageY * newZoom + padding - containerY;
+        
+        scrollContainer.scrollLeft = Math.max(0, newScrollLeft);
+        scrollContainer.scrollTop = Math.max(0, newScrollTop);
+      });
+    },
+    [imageZoom]
+  );
+
+  const zoomIn = useCallback(() => {
+    const scrollContainer = mainScrollRef.current;
+    if (scrollContainer) {
+      const rect = scrollContainer.getBoundingClientRect();
+      // Zoom to center of viewport
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      applyZoomFactor(1.1, centerX, centerY);
+    } else {
+      applyZoomFactor(1.1);
+    }
+  }, [applyZoomFactor]);
 
   const zoomOut = useCallback(() => {
-    applyZoomFactor(1 / 1.1);
+    const scrollContainer = mainScrollRef.current;
+    if (scrollContainer) {
+      const rect = scrollContainer.getBoundingClientRect();
+      // Zoom to center of viewport
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      applyZoomFactor(1 / 1.1, centerX, centerY);
+    } else {
+      applyZoomFactor(1 / 1.1);
+    }
   }, [applyZoomFactor]);
 
   const resetZoom = useCallback(() => {
@@ -552,7 +666,7 @@ export const AnnotationEditor = ({
         e.preventDefault();
         e.stopPropagation();
         const factor = e.deltaY < 0 ? 1.05 : 1 / 1.05;
-        applyZoomFactor(factor);
+        applyZoomFactor(factor, e.clientX, e.clientY);
       }
     },
     [applyZoomFactor]
@@ -564,22 +678,22 @@ export const AnnotationEditor = ({
         e.preventDefault();
         e.stopPropagation();
         const factor = e.deltaY < 0 ? 1.05 : 1 / 1.05;
-        applyZoomFactor(factor);
+        applyZoomFactor(factor, e.clientX, e.clientY);
       }
     },
     [applyZoomFactor]
   );
 
-    const handleReferenceLoad = useCallback(
-        (e: React.SyntheticEvent<HTMLImageElement>) => {
-            const img = e.currentTarget;
-            setReferenceSize({
-                width: img.naturalWidth,
-                height: img.naturalHeight,
-            });
-        },
-        []
-    );
+  const handleReferenceLoad = useCallback(
+    (e: React.SyntheticEvent<HTMLImageElement>) => {
+      const img = e.currentTarget;
+      setReferenceSize({
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+      });
+    },
+    []
+  );
 
   const syncScroll = useCallback((source: "main" | "ref") => {
     if (isSyncingScrollRef.current) return;
@@ -613,271 +727,331 @@ export const AnnotationEditor = ({
     });
   }, []);
 
-    const restoreCheckpoint = useCallback(
-        (revisionId: string) => {
-            const revision = revisionHistory.find((rev) => rev.id === revisionId);
-            if (!revision) return;
-            lastRevisionImageRef.current = revision.image;
-            setActiveImage({
-                image: revision.image,
-                mimeType: revision.mimeType,
-                description: revision.label,
-            });
-            setAnnotations([]);
-            setImageZoom(1);
-            setImageRotation(0);
-        },
-        [revisionHistory]
-    );
+  const restoreCheckpoint = useCallback(
+    (revisionId: string) => {
+      const revision = revisionHistory.find((rev) => rev.id === revisionId);
+      if (!revision) return;
+      lastRevisionImageRef.current = revision.image;
+      setActiveImage({
+        image: revision.image,
+        mimeType: revision.mimeType,
+        description: revision.label,
+      });
+      setAnnotations([]);
+      setImageZoom(1);
+      setImageRotation(0);
+    },
+    [revisionHistory]
+  );
 
-    const handleRestoreCheckpoint = useCallback(
-        (revisionId: string) => {
-            restoreCheckpoint(revisionId);
-            setIsDrawerOpen(false);
-        },
-        [restoreCheckpoint]
-    );
+  const handleRestoreCheckpoint = useCallback(
+    (revisionId: string) => {
+      restoreCheckpoint(revisionId);
+      setIsDrawerOpen(false);
+    },
+    [restoreCheckpoint]
+  );
 
   return (
     <>
-    <div className="fixed inset-x-0 bottom-0 top-0 z-50 flex bg-zinc-900">
-      <AnnotationToolbar
-        currentTool={currentTool}
-        onToolChange={setCurrentTool}
-        onZoomIn={zoomIn}
-        onZoomOut={zoomOut}
-        onRotateLeft={rotateLeft}
-        onRotateRight={rotateRight}
-      />
+      {/* Fixed button for toggling original reference */}
+      {originalCapturedImage && (
+        <button
+          onClick={() => setShowOriginalReference((prev) => !prev)}
+          className="fixed top-20 right-4 z-60 rounded-lg bg-zinc-800 p-2 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white border border-zinc-700 shadow-lg *:text-sm  cursor-pointer"
+          title={showOriginalReference ? "Hide Original" : "Show Original"}
+        >
+          {showOriginalReference ? (
+            <span className="flex items-center gap-2">
+            <EyeOff className="h-5 w-5" />
+            Hide Original
+            </span>
+          ) : (
+            <span className="flex items-center gap-2">
+            <Eye className="h-5 w-5" />
+            Show Original
+            </span>
+          )}
+        </button>
+      )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <AnnotationHeader
-          showOriginalReference={showOriginalReference}
-          onToggleReference={() => setShowOriginalReference((prev) => !prev)}
-          hasOriginalImage={!!originalCapturedImage}
-          annotationCount={annotations.length}
-          isRevising={isRevising}
-          onSendForRevision={sendForRevision}
+      <div className="fixed inset-x-0 bottom-0 top-0 z-50 flex bg-zinc-900">
+        <AnnotationToolbar
+          currentTool={currentTool}
+          onToolChange={setCurrentTool}
+          onZoomIn={zoomIn}
+          onZoomOut={zoomOut}
+          onRotateLeft={rotateLeft}
+          onRotateRight={rotateRight}
           onOpenCheckpoints={() => setIsDrawerOpen(true)}
         />
 
-        <div className="flex-1 overflow-auto bg-zinc-950 p-4">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <AnnotationHeader
+            annotationCount={annotations.length}
+            isRevising={isRevising}
+            onSendForRevision={sendForRevision}
+            isInitialImage={revisionHistory[0]?.parentId === null}
+            onSendForNewInitialImage={sendForNewInitialImage}
+          />
+
           <div
-            className={`grid gap-4 ${
-              showOriginalReference ? "lg:grid-cols-2" : ""
+            className={`flex-1 overflow-auto bg-zinc-950 p-4 ${
+              !showOriginalReference ? "flex items-start justify-center" : ""
             }`}
           >
             <div
-              className="overflow-auto rounded-lg border border-zinc-800 bg-zinc-900 p-3"
-              onWheel={handleWheelZoom}
-              onScroll={() => syncScroll("main")}
-              ref={mainScrollRef}
+              className={`gap-4 ${
+                showOriginalReference
+                  ? "grid lg:grid-cols-2"
+                  : "w-full max-w-fit"
+              }`}
             >
-              {currentTool === "freehand" && !isAnnotationDrawing && (
-                <div className="mb-3 rounded-lg bg-blue-900/50 border border-blue-700 px-4 py-3 text-sm text-blue-200">
-                  <p className="font-medium">Click to start drawing, then move your mouse to draw</p>
-                  <p className="text-xs text-blue-300 mt-1">Click again to finish</p>
-                </div>
-              )}
-              {currentTool === "freehand" && isAnnotationDrawing && (
-                <div className="mb-3 rounded-lg bg-green-900/50 border border-green-700 px-4 py-3 text-sm text-green-200">
-                  <p className="font-medium">Drawing... Move mouse to continue</p>
-                  <p className="text-xs text-green-300 mt-1">Click to finish • Press ESC to cancel</p>
-                </div>
-              )}
               <div
-                className="relative inline-block"
-                style={{
-                  transform: `scale(${imageZoom}) rotate(${imageRotation}deg)`,
-                  transformOrigin: "top left",
-                }}
+                className="overflow-auto rounded-lg border border-zinc-800 bg-zinc-900 p-3 relative"
+                onWheel={handleWheelZoom}
+                onScroll={() => syncScroll("main")}
+                ref={mainScrollRef}
               >
-                {konvaImage && generatedSize && (
-                  <>
-                    <Stage
-                      ref={stageRef}
-                      width={generatedSize.width}
-                      height={generatedSize.height}
-                      onClick={(e) => {
-                        // Close textarea if it's open
-                        if (editingTextArea) {
-                          handleTextareaBlur();
-                          return;
-                        }
-                        handleStageClick(e);
-                      }}
-                      onMouseMove={handleStageMouseMove}
-                      className={`rounded-lg shadow-2xl ${
-                        currentTool !== "select"
-                          ? "cursor-crosshair"
-                          : "cursor-default"
-                      }`}
+                {currentTool === "freehand" && !isAnnotationDrawing && showFreehandInstructions && (
+                  <div className="fixed top-22 left-20 z-10 rounded-lg bg-blue-900/90 border border-blue-700 px-4 py-3 text-sm text-blue-200 shadow-lg backdrop-blur-sm max-w-sm">
+                    <button
+                      onClick={() => setShowFreehandInstructions(false)}
+                      className="absolute top-2 right-2 text-blue-300 hover:text-blue-100 transition-colors"
+                      aria-label="Close instructions"
                     >
-                      <Layer ref={layerRef}>
-                        <KonvaImage image={konvaImage} />
-                        {annotations.map((ann) => renderAnnotationShape(ann))}
-                        {renderCurrentDrawing(currentAnnotationPoints, currentTool, annotationColor)}
-                        
-                        {/* Render connector lines from labels to shapes */}
-                        {annotations.map((ann) => {
-                          const anchor = getAnnotationAnchorPoint(ann);
-                          const labelSize = ann.labelSize || {
-                            width: DEFAULT_LABEL_WIDTH,
-                            height: DEFAULT_LABEL_HEIGHT,
-                          };
-                          
-                          const shapePoint = getShapeConnectionPoint(ann, anchor.x, anchor.y);
-                          const labelPoint = getLabelConnectionPoint(
-                            anchor.x,
-                            anchor.y,
-                            labelSize.width,
-                            labelSize.height,
-                            shapePoint.x,
-                            shapePoint.y
-                          );
-
-                          return (
-                            <Group key={`connector-${ann.id}`}>
-                              {/* Connector line with arrow */}
-                              <Arrow
-                                points={[
-                                  shapePoint.x,
-                                  shapePoint.y,
-                                  labelPoint.x,
-                                  labelPoint.y,
-                                ]}
-                                stroke={ann.color}
-                                fill={ann.color}
-                                strokeWidth={3}
-                                pointerLength={12}
-                                pointerWidth={12}
-                                lineCap="round"
-                                opacity={0.85}
-                              />
-                            </Group>
-                          );
-                        })}
-
-                        {/* Render text labels */}
-                        {annotations.map((ann) => {
-                          const anchor = getAnnotationAnchorPoint(ann);
-                          return (
-                            <TextLabel
-                              key={`label-${ann.id}`}
-                              annotation={{ ...ann, labelOffset: anchor }}
-                              onDragEnd={handleLabelDragEnd}
-                              onTransformEnd={handleLabelTransformEnd}
-                              onDoubleClick={handleLabelDoubleClick}
-                              onClick={handleLabelClick}
-                              isSelected={selectedLabelId === ann.id}
-                            />
-                          );
-                        })}
-                      </Layer>
-                    </Stage>
-
-                    {/* HTML Textarea overlay for editing */}
-                    {editingTextArea && (
-                      <div
-                        className="absolute z-20"
-                        style={{
-                          left: editingTextArea.x,
-                          top: editingTextArea.y,
-                          width: editingTextArea.width,
-                          height: editingTextArea.height,
-                          transform: `rotate(${imageRotation}deg)`,
-                          transformOrigin: "top left",
-                          pointerEvents: 'auto',
-                        }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onMouseUp={(e) => e.stopPropagation()}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <textarea
-                          ref={textareaRef}
-                          value={
-                            annotations.find((a) => a.id === editingTextArea.id)
-                              ?.text || ""
-                          }
-                          onChange={(e) =>
-                            updateAnnotationText(editingTextArea.id, e.target.value)
-                          }
-                          onBlur={handleTextareaBlur}
-                          onKeyDown={handleTextareaKeyDown}
-                          className="w-full h-full rounded-md border-2 border-blue-500 bg-white px-3 py-2 text-sm text-gray-900 outline-none resize-none shadow-lg"
-                          placeholder="Type annotation (Enter to save, Shift+Enter for new line)"
-                        />
-                      </div>
-                    )}
-                  </>
+                      <X className="h-4 w-4" />
+                    </button>
+                    <p className="font-medium pr-6">
+                      Click to start drawing, then move your mouse to draw.
+                    </p>
+                    <p className="text-xs text-blue-300 mt-1">
+                      Click again to finish
+                    </p>
+                  </div>
                 )}
-              </div>
-            </div>
-
-            {showOriginalReference && (
-              <div className="rounded-lg border border-zinc-800 bg-zinc-900">
-                <div
-                  className="mt-3 rounded border border-dashed border-zinc-700 bg-zinc-950 p-2 min-h-[200px] overflow-auto"
-                  onWheel={handleReferenceWheelZoom}
-                  onScroll={() => syncScroll("ref")}
-                  ref={referenceScrollRef}
-                >
-                  {originalCapturedImage ? (
-                    <div
-                      className="relative inline-block"
-                      style={{
-                        transform: `scale(${imageZoom * referenceScale})`,
-                        transformOrigin: "top left",
-                        width: referenceSize?.width
-                          ? `${referenceSize.width}px`
-                          : "auto",
-                        height: referenceSize?.height
-                          ? `${referenceSize.height}px`
-                          : "auto",
-                      }}
+                {currentTool === "freehand" && isAnnotationDrawing && showFreehandInstructions && (
+                  <div className="fixed top-22 left-20 z-10 rounded-lg bg-green-900/90 border border-green-700 px-4 py-3 text-sm text-green-200 shadow-lg backdrop-blur-sm max-w-sm">
+                    <button
+                      onClick={() => setShowFreehandInstructions(false)}
+                      className="absolute top-2 right-2 text-green-300 hover:text-green-100 transition-colors"
+                      aria-label="Close instructions"
                     >
-                      <img
-                        src={`data:${originalCapturedImage.mimeType};base64,${originalCapturedImage.image}`}
-                        onLoad={handleReferenceLoad}
-                        alt="Original reference capture"
-                        className="block rounded-lg shadow"
+                      <X className="h-4 w-4" />
+                    </button>
+                    <p className="font-medium pr-6">
+                      Drawing... Move mouse to continue
+                    </p>
+                    <p className="text-xs text-green-300 mt-1">
+                      Click to finish • Press ESC to cancel
+                    </p>
+                  </div>
+                )}
+                <div
+                  className="relative inline-block"
+                  style={{
+                    transform: `scale(${imageZoom}) rotate(${imageRotation}deg)`,
+                    transformOrigin: "top left",
+                  }}
+                >
+                  {konvaImage && generatedSize && (
+                    <>
+                      <Stage
+                        ref={stageRef}
+                        width={generatedSize.width}
+                        height={generatedSize.height}
+                        onClick={(e) => {
+                          // Close textarea if it's open
+                          if (editingTextArea) {
+                            handleTextareaBlur();
+                            return;
+                          }
+                          handleStageClick(e);
+                        }}
+                        onMouseMove={handleStageMouseMove}
+                        className={`rounded-lg shadow-2xl ${
+                          currentTool !== "select"
+                            ? "cursor-crosshair"
+                            : "cursor-default"
+                        }`}
+                      >
+                        <Layer ref={layerRef}>
+                          <KonvaImage image={konvaImage} />
+                          {annotations.map((ann) => renderAnnotationShape(ann))}
+                          {renderCurrentDrawing(
+                            currentAnnotationPoints,
+                            currentTool,
+                            annotationColor
+                          )}
+
+                          {/* Render connector lines from labels to shapes */}
+                          {annotations.map((ann) => {
+                            const anchor = getAnnotationAnchorPoint(ann);
+                            const labelSize = ann.labelSize || {
+                              width: DEFAULT_LABEL_WIDTH,
+                              height: DEFAULT_LABEL_HEIGHT,
+                            };
+
+                            const shapePoint = getShapeConnectionPoint(
+                              ann,
+                              anchor.x,
+                              anchor.y
+                            );
+                            const labelPoint = getLabelConnectionPoint(
+                              anchor.x,
+                              anchor.y,
+                              labelSize.width,
+                              labelSize.height,
+                              shapePoint.x,
+                              shapePoint.y
+                            );
+
+                            return (
+                              <Group key={`connector-${ann.id}`}>
+                                {/* Connector line with arrow */}
+                                <Arrow
+                                  points={[
+                                    shapePoint.x,
+                                    shapePoint.y,
+                                    labelPoint.x,
+                                    labelPoint.y,
+                                  ]}
+                                  stroke={ann.color}
+                                  fill={ann.color}
+                                  strokeWidth={3}
+                                  pointerLength={12}
+                                  pointerWidth={12}
+                                  lineCap="round"
+                                  opacity={0.85}
+                                />
+                              </Group>
+                            );
+                          })}
+
+                          {/* Render text labels */}
+                          {annotations.map((ann) => {
+                            const anchor = getAnnotationAnchorPoint(ann);
+                            return (
+                              <TextLabel
+                                key={`label-${ann.id}`}
+                                annotation={{ ...ann, labelOffset: anchor }}
+                                onDragEnd={handleLabelDragEnd}
+                                onTransformEnd={handleLabelTransformEnd}
+                                onDoubleClick={handleLabelDoubleClick}
+                                onClick={handleLabelClick}
+                                isSelected={selectedLabelId === ann.id}
+                              />
+                            );
+                          })}
+                        </Layer>
+                      </Stage>
+
+                      {/* HTML Textarea overlay for editing */}
+                      {editingTextArea && (
+                        <div
+                          className="absolute z-20"
+                          style={{
+                            left: editingTextArea.x,
+                            top: editingTextArea.y,
+                            width: editingTextArea.width,
+                            height: editingTextArea.height,
+                            transform: `rotate(${imageRotation}deg)`,
+                            transformOrigin: "top left",
+                            pointerEvents: "auto",
+                          }}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onMouseUp={(e) => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <textarea
+                            ref={textareaRef}
+                            value={
+                              annotations.find(
+                                (a) => a.id === editingTextArea.id
+                              )?.text || ""
+                            }
+                            onChange={(e) =>
+                              updateAnnotationText(
+                                editingTextArea.id,
+                                e.target.value
+                              )
+                            }
+                            onBlur={handleTextareaBlur}
+                            onKeyDown={handleTextareaKeyDown}
+                            className="w-full h-full rounded-md border-2 border-blue-500 bg-white px-3 py-2 text-sm text-gray-900 outline-none resize-none shadow-lg"
+                            placeholder="Type annotation (Enter to save, Shift+Enter for new line)"
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {showOriginalReference && (
+                <div className="rounded-lg border border-zinc-800 bg-zinc-900">
+                  <div
+                    className="mt-3 rounded border border-dashed border-zinc-700 bg-zinc-950 p-2 min-h-[200px] overflow-auto"
+                    onWheel={handleReferenceWheelZoom}
+                    onScroll={() => syncScroll("ref")}
+                    ref={referenceScrollRef}
+                  >
+                    {originalCapturedImage ? (
+                      <div
+                        className="relative inline-block"
                         style={{
+                          transform: `scale(${imageZoom * referenceScale})`,
+                          transformOrigin: "top left",
                           width: referenceSize?.width
                             ? `${referenceSize.width}px`
                             : "auto",
                           height: referenceSize?.height
                             ? `${referenceSize.height}px`
                             : "auto",
-                          objectFit: "contain",
                         }}
-                      />
-                    </div>
-                  ) : (
-                    <p className="text-sm text-zinc-500 text-center">
-                      Original map capture not found.
-                    </p>
-                  )}
+                      >
+                        <img
+                          src={`data:${originalCapturedImage.mimeType};base64,${originalCapturedImage.image}`}
+                          onLoad={handleReferenceLoad}
+                          alt="Original reference capture"
+                          className="block rounded-lg shadow"
+                          style={{
+                            width: referenceSize?.width
+                              ? `${referenceSize.width}px`
+                              : "auto",
+                            height: referenceSize?.height
+                              ? `${referenceSize.height}px`
+                              : "auto",
+                            objectFit: "contain",
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <p className="text-sm text-zinc-500 text-center">
+                        Original map capture not found.
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
+
+          <AnnotationList
+            annotations={annotations}
+            selectedLabelId={selectedLabelId}
+            onSelectAnnotation={setSelectedLabelId}
+            onDeleteAnnotation={deleteAnnotation}
+          />
         </div>
-
-        <AnnotationList
-          annotations={annotations}
-          selectedLabelId={selectedLabelId}
-          onSelectAnnotation={setSelectedLabelId}
-          onDeleteAnnotation={deleteAnnotation}
-        />
       </div>
-    </div>
 
-    <CheckpointsDrawer
-      isOpen={isDrawerOpen}
-      onClose={() => setIsDrawerOpen(false)}
-      revisionHistory={revisionHistory}
-      onRestoreCheckpoint={handleRestoreCheckpoint}
-    />
+      <CheckpointsDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        revisionHistory={revisionHistory}
+        onRestoreCheckpoint={handleRestoreCheckpoint}
+      />
     </>
   );
 };

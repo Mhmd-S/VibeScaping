@@ -1,4 +1,5 @@
 import {
+  History,
   MousePointer2,
   Pencil,
   RotateCcw,
@@ -15,6 +16,7 @@ interface AnnotationToolbarProps {
   onZoomOut: () => void;
   onRotateLeft: () => void;
   onRotateRight: () => void;
+  onOpenCheckpoints: () => void;
 }
 
 export const AnnotationToolbar = ({
@@ -24,6 +26,7 @@ export const AnnotationToolbar = ({
   onZoomOut,
   onRotateLeft,
   onRotateRight,
+  onOpenCheckpoints,
 }: AnnotationToolbarProps) => {
   return (
     <div className="flex w-16 flex-col items-center gap-1 border-r border-zinc-700 bg-zinc-800 py-4">
@@ -66,7 +69,7 @@ export const AnnotationToolbar = ({
       >
         <ZoomOut className="h-5 w-5" />
       </button>
-      <button
+      {/* <button
         onClick={onRotateLeft}
         className="rounded-lg p-3 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white"
         title="Rotate Left"
@@ -79,6 +82,16 @@ export const AnnotationToolbar = ({
         title="Rotate Right"
       >
         <RotateCw className="h-5 w-5" />
+      </button> */}
+
+      <div className="my-2 h-px w-10 bg-zinc-600" />
+
+      <button
+        onClick={onOpenCheckpoints}
+        className="rounded-lg p-3 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white"
+        title="Checkpoints"
+      >
+        <History className="h-5 w-5" />
       </button>
     </div>
   );

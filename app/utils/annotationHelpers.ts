@@ -80,9 +80,6 @@ export const getLabelConnectionPoint = (
   const labelCenterX = labelX + labelWidth / 2;
   const labelCenterY = labelY + labelHeight / 2;
 
-  // Calculate angle from label center to shape
-  const angle = Math.atan2(shapeY - labelCenterY, shapeX - labelCenterX);
-
   // Calculate intersection point on label rectangle
   const corners = [
     { x: labelX, y: labelY }, // top-left
