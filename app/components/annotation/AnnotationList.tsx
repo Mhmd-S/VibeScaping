@@ -2,19 +2,19 @@ import { X } from "lucide-react";
 import { Annotation } from "../../types/landscape";
 
 interface AnnotationListProps {
-  annotations: Annotation[];
-  selectedLabelId: string | null;
-  onSelectAnnotation: (id: string) => void;
-  onDeleteAnnotation: (id: string) => void;
+    annotations: Annotation[];
+    selectedLabelIds: string[];
+    onSelectAnnotation: (id: string) => void;
+    onDeleteAnnotation: (id: string) => void;
 }
 
 export const AnnotationList = ({
-  annotations,
-  selectedLabelId,
-  onSelectAnnotation,
-  onDeleteAnnotation,
+    annotations,
+    selectedLabelIds,
+    onSelectAnnotation,
+    onDeleteAnnotation,
 }: AnnotationListProps) => {
-  if (annotations.length === 0) return null;
+    if (annotations.length === 0) return null;
 
   return (
     <div className="border-t border-zinc-700 bg-zinc-800 px-4 py-3">
@@ -23,7 +23,7 @@ export const AnnotationList = ({
           <div
             key={ann.id}
             className={`flex items-center gap-2 rounded-full px-3 py-1 text-sm max-w-xs cursor-pointer transition-colors ${
-              selectedLabelId === ann.id
+              selectedLabelIds.includes(ann.id)
                 ? "bg-blue-600 ring-2 ring-blue-400"
                 : "bg-zinc-700 hover:bg-zinc-600"
             }`}

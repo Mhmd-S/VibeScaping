@@ -14,7 +14,7 @@ export interface GeneratedImage {
     description?: string;
 }
 
-export type AnnotationTool = 'select' | 'freehand';
+export type AnnotationTool = 'select' | 'line' | 'arrow' | 'textbox' | 'freehand';
 
 export interface Point {
     x: number;

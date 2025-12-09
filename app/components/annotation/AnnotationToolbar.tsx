@@ -1,11 +1,12 @@
 import {
-  History,
-  MousePointer2,
-  Pencil,
-  RotateCcw,
-  RotateCw,
-  ZoomIn,
-  ZoomOut,
+    ArrowRight,
+    History,
+    MousePointer2,
+    Minus,
+    Pencil,
+    Type,
+    ZoomIn,
+    ZoomOut,
 } from "lucide-react";
 import { AnnotationTool } from "../../types/landscape";
 
@@ -20,13 +21,13 @@ interface AnnotationToolbarProps {
 }
 
 export const AnnotationToolbar = ({
-  currentTool,
-  onToolChange,
-  onZoomIn,
-  onZoomOut,
-  onRotateLeft,
-  onRotateRight,
-  onOpenCheckpoints,
+    currentTool,
+    onToolChange,
+    onZoomIn,
+    onZoomOut,
+    onRotateLeft,
+    onRotateRight,
+    onOpenCheckpoints,
 }: AnnotationToolbarProps) => {
   return (
     <div className="flex w-16 flex-col items-center gap-1 border-r border-zinc-700 bg-zinc-800 py-4">
@@ -42,6 +43,28 @@ export const AnnotationToolbar = ({
         <MousePointer2 className="h-5 w-5" />
       </button>
       <button
+        onClick={() => onToolChange("line")}
+        className={`rounded-lg p-3 transition-colors ${
+          currentTool === "line"
+            ? "bg-blue-600 text-white"
+            : "text-zinc-400 hover:bg-zinc-700 hover:text-white"
+        }`}
+        title="Line"
+      >
+        <Minus className="h-5 w-5" />
+      </button>
+      <button
+        onClick={() => onToolChange("arrow")}
+        className={`rounded-lg p-3 transition-colors ${
+          currentTool === "arrow"
+            ? "bg-blue-600 text-white"
+            : "text-zinc-400 hover:bg-zinc-700 hover:text-white"
+        }`}
+        title="Arrow"
+      >
+        <ArrowRight className="h-5 w-5" />
+      </button>
+      <button
         onClick={() => onToolChange("freehand")}
         className={`rounded-lg p-3 transition-colors ${
           currentTool === "freehand"
@@ -51,6 +74,17 @@ export const AnnotationToolbar = ({
         title="Freehand Drawing"
       >
         <Pencil className="h-5 w-5" />
+      </button>
+      <button
+        onClick={() => onToolChange("textbox")}
+        className={`rounded-lg p-3 transition-colors ${
+          currentTool === "textbox"
+            ? "bg-blue-600 text-white"
+            : "text-zinc-400 hover:bg-zinc-700 hover:text-white"
+        }`}
+        title="Textbox"
+      >
+        <Type className="h-5 w-5" />
       </button>
 
       <div className="my-2 h-px w-10 bg-zinc-600" />

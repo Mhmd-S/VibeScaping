@@ -465,6 +465,14 @@ const Home = () => {
             </LoadScript>
 
             <div className="pointer-events-none absolute left-0 right-0 top-3 z-10 px-4 sm:top-4">
+                <div className="pointer-events-auto mb-2 flex justify-end">
+                    <button
+                        onClick={() => router.push('/dashboard')}
+                        className="rounded-lg border border-zinc-200 bg-white/95 px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm transition hover:border-blue-500 hover:text-blue-600 dark:border-zinc-700 dark:bg-zinc-900/95 dark:text-zinc-100 dark:hover:border-blue-400 dark:hover:text-blue-300"
+                    >
+                        Dashboard
+                    </button>
+                </div>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="pointer-events-auto w-full rounded-xl bg-white/95 p-4 shadow-lg backdrop-blur dark:bg-zinc-900/95 sm:max-w-lg lg:max-w-xl">
                         <div className="flex items-center justify-between gap-3">

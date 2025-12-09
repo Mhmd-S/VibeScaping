@@ -15,7 +15,7 @@ interface TextLabelProps {
   onDragEnd: (id: string, x: number, y: number) => void;
   onTransformEnd: (id: string, width: number, height: number, x: number, y: number) => void;
   onDoubleClick: (id: string) => void;
-  onClick: (id: string) => void;
+  onClick: (id: string, e: Konva.KonvaEventObject<Event>) => void;
   isSelected: boolean;
 }
 
@@ -123,11 +123,11 @@ export const TextLabel = ({
         }}
         onClick={(e) => {
           e.cancelBubble = true;
-          onClick(annotation.id);
+          onClick(annotation.id, e);
         }}
         onTap={(e) => {
           e.cancelBubble = true;
-          onClick(annotation.id);
+          onClick(annotation.id, e as unknown as Konva.KonvaEventObject<Event>);
         }}
         onDblClick={(e) => {
           e.cancelBubble = true;
@@ -143,13 +143,15 @@ export const TextLabel = ({
           ref={rectRef}
           width={labelSize.width}
           height={labelSize.height}
-          fill="rgba(255, 255, 255, 0.95)"
-          stroke={annotation.color}
-          strokeWidth={2}
+          fill={
+            isSelected ? "rgba(59, 130, 246, 0.08)" : "rgba(255, 255, 255, 0.95)"
+          }
+          stroke={isSelected ? "#2563eb" : annotation.color}
+          strokeWidth={isSelected ? 3 : 2}
           cornerRadius={6}
-          shadowColor="black"
-          shadowBlur={10}
-          shadowOpacity={0.3}
+          shadowColor={isSelected ? "#1d4ed8" : "black"}
+          shadowBlur={isSelected ? 18 : 10}
+          shadowOpacity={isSelected ? 0.45 : 0.3}
           shadowOffsetX={2}
           shadowOffsetY={2}
         />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Stage, Layer, Image as KonvaImage, Group, Arrow } from "react-konva";
+import { Stage, Layer, Image as KonvaImage, Rect, Circle } from "react-konva";
 import Konva from "konva";
 import { Eye, EyeOff, X } from "lucide-react";
 import {
@@ -17,8 +17,6 @@ import {
   DEFAULT_LABEL_HEIGHT,
   simplifyAnnotationPoints,
   getAnnotationAnchorPoint,
-  getShapeConnectionPoint,
-  getLabelConnectionPoint,
 } from "../utils/annotationHelpers";
 import {
   renderAnnotationShape,
@@ -51,7 +49,7 @@ export const AnnotationEditor = ({
   onError,
 }: AnnotationEditorProps) => {
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
-  const [currentTool, setCurrentTool] = useState<AnnotationTool>("freehand");
+  const [currentTool, setCurrentTool] = useState<AnnotationTool>("line");
   const annotationColor = "#ef4444";
   const [isAnnotationDrawing, setIsAnnotationDrawing] = useState(false);
   const [currentAnnotationPoints, setCurrentAnnotationPoints] = useState<
@@ -76,7 +74,9 @@ export const AnnotationEditor = ({
   const [revisionHistory, setRevisionHistory] = useState<RevisionNode[]>([]);
   const lastRevisionImageRef = useRef<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [selectedLabelId, setSelectedLabelId] = useState<string | null>(null);
+  const [selectedAnnotationIds, setSelectedAnnotationIds] = useState<string[]>(
+    []
+  );
   const [editingTextArea, setEditingTextArea] = useState<{
     id: string;
     x: number;
@@ -85,6 +85,31 @@ export const AnnotationEditor = ({
     height: number;
   } | null>(null);
   const [showFreehandInstructions, setShowFreehandInstructions] = useState(true);
+  const [selectionRect, setSelectionRect] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const selectedAnnotations = useMemo(
+    () => annotations.filter((ann) => selectedAnnotationIds.includes(ann.id)),
+    [annotations, selectedAnnotationIds]
+  );
+
+  const updateAnnotationPoint = useCallback(
+    (id: string, pointIndex: number, x: number, y: number) => {
+      setAnnotations((prev) =>
+        prev.map((ann) => {
+          if (ann.id !== id) return ann;
+          const nextPoints = ann.points.map((p, idx) =>
+            idx === pointIndex ? { x, y } : p
+          );
+          return { ...ann, points: nextPoints };
+        })
+      );
+    },
+    []
+  );
 
   const stageRef = useRef<Konva.Stage | null>(null);
   const layerRef = useRef<Konva.Layer | null>(null);
@@ -93,6 +118,7 @@ export const AnnotationEditor = ({
   const isSyncingScrollRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const isClosingTextareaRef = useRef(false);
+  const selectionStartRef = useRef<Point | null>(null);
 
   // Load the main image
   const imageSrc = useMemo(
@@ -129,26 +155,23 @@ export const AnnotationEditor = ({
     []
   );
 
-  const handleLabelDoubleClick = useCallback(
+  const handleTextboxDoubleClick = useCallback(
     (id: string) => {
-      // Clear any existing selection to prevent conflicts
-      setSelectedLabelId(null);
+      setSelectedAnnotationIds([id]);
 
-      // Small delay to let the selection clear
       requestAnimationFrame(() => {
         const ann = annotations.find((a) => a.id === id);
         if (!ann || !stageRef.current) return;
 
-        const anchor = getAnnotationAnchorPoint(ann);
+        const anchor =
+          ann.labelOffset || getAnnotationAnchorPoint(ann) || { x: 0, y: 0 };
         const labelSize = ann.labelSize || {
           width: DEFAULT_LABEL_WIDTH,
           height: DEFAULT_LABEL_HEIGHT,
         };
 
-        // Calculate position relative to the stage
         const scale = imageZoom;
 
-        // Position the textarea
         setEditingTextArea({
           id: ann.id,
           x: anchor.x * scale,
@@ -157,7 +180,6 @@ export const AnnotationEditor = ({
           height: labelSize.height * scale,
         });
 
-        // Focus after a brief delay to ensure textarea is rendered
         setTimeout(() => {
           if (textareaRef.current) {
             textareaRef.current.focus();
@@ -202,9 +224,84 @@ export const AnnotationEditor = ({
     []
   );
 
-  const handleLabelClick = useCallback((id: string) => {
-    setSelectedLabelId(id);
+  const handleLabelClick = useCallback(
+    (id: string, e: Konva.KonvaEventObject<Event>) => {
+      const multiKey = !!e.evt && ((e.evt as MouseEvent).metaKey || (e.evt as MouseEvent).ctrlKey || (e.evt as MouseEvent).shiftKey);
+      setSelectedAnnotationIds((prev) => {
+        if (multiKey) {
+          if (prev.includes(id)) {
+            return prev.filter((item) => item !== id);
+          }
+          return [...prev, id];
+        }
+        return [id];
+      });
+    },
+    []
+  );
+
+  const normalizeSelectionRect = useCallback((start: Point, end: Point) => {
+    return {
+      x: Math.min(start.x, end.x),
+      y: Math.min(start.y, end.y),
+      width: Math.abs(end.x - start.x),
+      height: Math.abs(end.y - start.y),
+    };
   }, []);
+
+  const getAnnotationBounds = useCallback((ann: Annotation) => {
+    if (ann.type === "textbox" && ann.labelOffset) {
+      const width = ann.labelSize?.width || DEFAULT_LABEL_WIDTH;
+      const height = ann.labelSize?.height || DEFAULT_LABEL_HEIGHT;
+      return {
+        x1: ann.labelOffset.x,
+        y1: ann.labelOffset.y,
+        x2: ann.labelOffset.x + width,
+        y2: ann.labelOffset.y + height,
+      };
+    }
+
+    const xs = ann.points.map((p) => p.x);
+    const ys = ann.points.map((p) => p.y);
+
+    return {
+      x1: Math.min(...xs),
+      y1: Math.min(...ys),
+      x2: Math.max(...xs),
+      y2: Math.max(...ys),
+    };
+  }, []);
+
+  const selectAnnotationsInRect = useCallback(
+    (rect: { x: number; y: number; width: number; height: number } | null) => {
+      if (!rect || (rect.width < 3 && rect.height < 3)) {
+        return;
+      }
+
+      const rectBounds = {
+        x1: rect.x,
+        y1: rect.y,
+        x2: rect.x + rect.width,
+        y2: rect.y + rect.height,
+      };
+
+      const intersects = (bounds: { x1: number; y1: number; x2: number; y2: number }) =>
+        !(
+          rectBounds.x2 < bounds.x1 ||
+          rectBounds.x1 > bounds.x2 ||
+          rectBounds.y2 < bounds.y1 ||
+          rectBounds.y1 > bounds.y2
+        );
+
+      const hits = [...annotations]
+        .reverse()
+        .filter((ann) => intersects(getAnnotationBounds(ann)))
+        .map((ann) => ann.id);
+
+      setSelectedAnnotationIds(hits);
+    },
+    [annotations, getAnnotationBounds]
+  );
 
   // Set image dimensions when konva image loads
   useEffect(() => {
@@ -216,60 +313,158 @@ export const AnnotationEditor = ({
     }
   }, [konvaImage]);
 
-  const handleStageClick = useCallback(
+  const handleStageMouseDown = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
-      // Don't handle clicks if we just closed the textarea
       if (isClosingTextareaRef.current) {
         return;
       }
 
-      const target = e.target;
-      const stage = target.getStage();
-
-      // Check what we clicked on
-      const targetType = target.getType();
-      const parentType = target.parent?.getType();
-
-      // Check if we clicked on a text label or its components
-      const isLabelGroup = targetType === "Group" && parentType === "Layer";
-      const isLabelChild =
-        (targetType === "Rect" || targetType === "Text") &&
-        parentType === "Group";
-      const clickedOnLabel = isLabelGroup || isLabelChild;
-
-      // Check if clicked on transformer
-      const clickedOnTransformer = targetType === "Transformer";
-
-      // Deselect labels when clicking on the image or stage
-      if (targetType === "Image" || target === stage) {
-        setSelectedLabelId(null);
+      if (editingTextArea) {
+        handleTextareaBlur();
       }
 
-      // Don't handle drawing if select tool is active
-      if (currentTool === "select") return;
-
-      // Don't handle drawing if we clicked on a label or transformer
-      if (clickedOnLabel || clickedOnTransformer) {
-        return;
-      }
-
+      const stage = e.target.getStage();
       if (!stage) return;
       const pos = stage.getPointerPosition();
       if (!pos) return;
 
-      // If not currently drawing, start drawing
-      if (!isAnnotationDrawing) {
-        setIsAnnotationDrawing(true);
-        setCurrentAnnotationPoints([{ x: pos.x, y: pos.y }]);
-      } else {
-        // If already drawing, finish the annotation
-        let finalPoints = currentAnnotationPoints;
+      setSelectedAnnotationIds([]);
+
+      if (currentTool === "select") {
+        selectionStartRef.current = pos;
+        setSelectionRect({
+          x: pos.x,
+          y: pos.y,
+          width: 0,
+          height: 0,
+        });
+        return;
+      }
+
+      if (currentTool === "textbox") {
+        const newAnnotation: Annotation = {
+          id: `ann-${Date.now()}`,
+          type: "textbox",
+          points: [{ x: pos.x, y: pos.y }],
+          text: "",
+          color: annotationColor,
+          isEditing: false,
+          labelOffset: { x: pos.x, y: pos.y },
+          labelSize: {
+            width: DEFAULT_LABEL_WIDTH,
+            height: DEFAULT_LABEL_HEIGHT,
+          },
+        };
+        setAnnotations((prev) => [...prev, newAnnotation]);
+        setSelectedAnnotationIds([newAnnotation.id]);
+        setEditingTextArea({
+          id: newAnnotation.id,
+          x: pos.x * imageZoom,
+          y: pos.y * imageZoom,
+          width: (newAnnotation.labelSize?.width || DEFAULT_LABEL_WIDTH) * imageZoom,
+          height: (newAnnotation.labelSize?.height || DEFAULT_LABEL_HEIGHT) * imageZoom,
+        });
+        requestAnimationFrame(() => {
+          if (textareaRef.current) {
+            textareaRef.current.focus();
+            textareaRef.current.select();
+          }
+        });
+        return;
+      }
+
+      setIsAnnotationDrawing(true);
+      setCurrentAnnotationPoints([{ x: pos.x, y: pos.y }]);
+    },
+    [annotationColor, currentTool, editingTextArea, handleTextareaBlur, imageZoom]
+  );
+
+  const handleStageMouseMove = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      const stage = e.target.getStage();
+      if (!stage) return;
+
+      const pos = stage.getPointerPosition();
+      if (!pos) return;
+
+      if (currentTool === "select") {
+        if (!selectionStartRef.current) return;
+        setSelectionRect(normalizeSelectionRect(selectionStartRef.current, pos));
+        return;
+      }
+
+      if (!isAnnotationDrawing || currentTool === "textbox") {
+        return;
+      }
+
+      setCurrentAnnotationPoints((prev) => {
+        if (prev.length === 0) return [{ x: pos.x, y: pos.y }];
+
         if (currentTool === "freehand") {
-          finalPoints = simplifyAnnotationPoints(currentAnnotationPoints, 3);
+          const lastPoint = prev[prev.length - 1];
+          const distance = Math.sqrt(
+            Math.pow(pos.x - lastPoint.x, 2) + Math.pow(pos.y - lastPoint.y, 2)
+          );
+          if (distance > 2) {
+            return [...prev, { x: pos.x, y: pos.y }];
+          }
+          return prev;
         }
 
-        if (finalPoints.length >= 2) {
-          const newAnnotation: Annotation = {
+        return [prev[0], { x: pos.x, y: pos.y }];
+      });
+    },
+    [currentTool, isAnnotationDrawing, normalizeSelectionRect]
+  );
+
+  const handleStageMouseUp = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      const stage = e.target.getStage();
+      if (!stage) return;
+      const pos = stage.getPointerPosition();
+
+      if (currentTool === "select") {
+        if (selectionStartRef.current && pos) {
+          const normalized = normalizeSelectionRect(selectionStartRef.current, pos);
+          setSelectionRect(normalized);
+          selectAnnotationsInRect(normalized);
+        }
+        selectionStartRef.current = null;
+        setSelectionRect(null);
+        return;
+      }
+
+      if (!isAnnotationDrawing || currentTool === "textbox") {
+        return;
+      }
+
+      let finalPoints = currentAnnotationPoints;
+
+      if (pos) {
+        if (currentTool === "freehand") {
+          finalPoints = [...currentAnnotationPoints, { x: pos.x, y: pos.y }];
+        } else {
+          finalPoints = [currentAnnotationPoints[0], { x: pos.x, y: pos.y }];
+        }
+      }
+
+      if (currentTool === "freehand") {
+        finalPoints = simplifyAnnotationPoints(finalPoints, 3);
+      }
+
+      const hasLength =
+        finalPoints.length >= 2 &&
+        (currentTool === "freehand"
+          ? true
+          : Math.hypot(
+              finalPoints[finalPoints.length - 1].x - finalPoints[0].x,
+              finalPoints[finalPoints.length - 1].y - finalPoints[0].y
+            ) > 1);
+
+      if (hasLength) {
+        setAnnotations((prev) => [
+          ...prev,
+          {
             id: `ann-${Date.now()}`,
             type: currentTool,
             points: finalPoints,
@@ -281,63 +476,41 @@ export const AnnotationEditor = ({
               width: DEFAULT_LABEL_WIDTH,
               height: DEFAULT_LABEL_HEIGHT,
             },
-          };
-          setAnnotations((prev) => [...prev, newAnnotation]);
-
-          // Automatically open the text editor for the new annotation
-          setTimeout(() => {
-            handleLabelDoubleClick(newAnnotation.id);
-          }, 100);
-        }
-
-        setIsAnnotationDrawing(false);
-        setCurrentAnnotationPoints([]);
+          },
+        ]);
       }
+
+      setIsAnnotationDrawing(false);
+      setCurrentAnnotationPoints([]);
     },
     [
+      annotationColor,
+      currentAnnotationPoints,
       currentTool,
       isAnnotationDrawing,
-      currentAnnotationPoints,
-      annotationColor,
-      handleLabelDoubleClick,
+      normalizeSelectionRect,
+      selectAnnotationsInRect,
     ]
   );
 
-  const handleStageMouseMove = useCallback(
+  const handleStageClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
-      if (!isAnnotationDrawing || currentTool === "select") return;
+      if (isAnnotationDrawing || editingTextArea) return;
+      const target = e.target;
+      const stage = target.getStage();
+      const targetType = target.getType();
 
-      const stage = e.target.getStage();
-      if (!stage) return;
-
-      const pos = stage.getPointerPosition();
-      if (!pos) return;
-
-      // Add points continuously as mouse moves (without holding button down)
-      setCurrentAnnotationPoints((prev) => {
-        if (prev.length === 0) return [{ x: pos.x, y: pos.y }];
-
-        // Calculate distance from last point to avoid adding too many points
-        const lastPoint = prev[prev.length - 1];
-        const distance = Math.sqrt(
-          Math.pow(pos.x - lastPoint.x, 2) + Math.pow(pos.y - lastPoint.y, 2)
-        );
-
-        // Only add point if it's far enough from the last one (reduces noise)
-        if (distance > 2) {
-          return [...prev, { x: pos.x, y: pos.y }];
-        }
-
-        return prev;
-      });
+      if (targetType === "Image" || target === stage) {
+        setSelectedAnnotationIds([]);
+      }
     },
-    [isAnnotationDrawing, currentTool]
+    [editingTextArea, isAnnotationDrawing]
   );
 
   const updateAnnotationText = useCallback((id: string, text: string) => {
     setAnnotations((prev) =>
       prev.map((ann) => {
-        if (ann.id === id) {
+        if (ann.id === id && ann.type === "textbox") {
           // Calculate new height based on text content
           const tempText = new Konva.Text({
             text: text,
@@ -364,9 +537,11 @@ export const AnnotationEditor = ({
     );
   }, []);
 
-  const deleteAnnotation = useCallback((id: string) => {
-    setAnnotations((prev) => prev.filter((ann) => ann.id !== id));
-    setSelectedLabelId(null);
+  const deleteAnnotation = useCallback((idOrIds: string | string[]) => {
+    const idsToDelete = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
+    const deleteSet = new Set(idsToDelete);
+    setAnnotations((prev) => prev.filter((ann) => !deleteSet.has(ann.id)));
+    setSelectedAnnotationIds((prev) => prev.filter((id) => !deleteSet.has(id)));
     setEditingTextArea(null);
   }, []);
 
@@ -403,11 +578,11 @@ export const AnnotationEditor = ({
       // Delete selected annotation with Delete or Backspace key
       if (
         (e.key === "Delete" || e.key === "Backspace") &&
-        selectedLabelId &&
+        selectedAnnotationIds.length > 0 &&
         !editingTextArea
       ) {
         e.preventDefault();
-        deleteAnnotation(selectedLabelId);
+        deleteAnnotation(selectedAnnotationIds);
       }
     };
 
@@ -420,7 +595,7 @@ export const AnnotationEditor = ({
       window.removeEventListener("keydown", preventKeyZoom);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [selectedLabelId, editingTextArea, deleteAnnotation, isAnnotationDrawing]);
+  }, [selectedAnnotationIds, editingTextArea, deleteAnnotation, isAnnotationDrawing]);
 
   useEffect(() => {
     setActiveImage(generatedImage);
@@ -791,7 +966,7 @@ export const AnnotationEditor = ({
             annotationCount={annotations.length}
             isRevising={isRevising}
             onSendForRevision={sendForRevision}
-            isInitialImage={revisionHistory[0]?.parentId === null}
+            isInitialImage={revisionHistory[revisionHistory.length - 1]?.parentId === null}
             onSendForNewInitialImage={sendForNewInitialImage}
           />
 
@@ -826,7 +1001,7 @@ export const AnnotationEditor = ({
                       Click to start drawing, then move your mouse to draw.
                     </p>
                     <p className="text-xs text-blue-300 mt-1">
-                      Click again to finish
+                      Release to finish
                     </p>
                   </div>
                 )}
@@ -843,7 +1018,7 @@ export const AnnotationEditor = ({
                       Drawing... Move mouse to continue
                     </p>
                     <p className="text-xs text-green-300 mt-1">
-                      Click to finish • Press ESC to cancel
+                      Release to finish • Press ESC to cancel
                     </p>
                   </div>
                 )}
@@ -860,15 +1035,10 @@ export const AnnotationEditor = ({
                         ref={stageRef}
                         width={generatedSize.width}
                         height={generatedSize.height}
-                        onClick={(e) => {
-                          // Close textarea if it's open
-                          if (editingTextArea) {
-                            handleTextareaBlur();
-                            return;
-                          }
-                          handleStageClick(e);
-                        }}
+                        onMouseDown={handleStageMouseDown}
+                        onClick={handleStageClick}
                         onMouseMove={handleStageMouseMove}
+                        onMouseUp={handleStageMouseUp}
                         className={`rounded-lg shadow-2xl ${
                           currentTool !== "select"
                             ? "cursor-crosshair"
@@ -877,72 +1047,83 @@ export const AnnotationEditor = ({
                       >
                         <Layer ref={layerRef}>
                           <KonvaImage image={konvaImage} />
-                          {annotations.map((ann) => renderAnnotationShape(ann))}
+                          {annotations
+                            .filter((ann) => ann.type !== "textbox")
+                            .map((ann) =>
+                              renderAnnotationShape(ann, false, {
+                                isSelected: selectedAnnotationIds.includes(ann.id),
+                                onSelect: (id, e) => handleLabelClick(id, e),
+                              })
+                            )}
                           {renderCurrentDrawing(
                             currentAnnotationPoints,
                             currentTool,
                             annotationColor
                           )}
-
-                          {/* Render connector lines from labels to shapes */}
-                          {annotations.map((ann) => {
-                            const anchor = getAnnotationAnchorPoint(ann);
-                            const labelSize = ann.labelSize || {
-                              width: DEFAULT_LABEL_WIDTH,
-                              height: DEFAULT_LABEL_HEIGHT,
-                            };
-
-                            const shapePoint = getShapeConnectionPoint(
-                              ann,
-                              anchor.x,
-                              anchor.y
-                            );
-                            const labelPoint = getLabelConnectionPoint(
-                              anchor.x,
-                              anchor.y,
-                              labelSize.width,
-                              labelSize.height,
-                              shapePoint.x,
-                              shapePoint.y
-                            );
-
-                            return (
-                              <Group key={`connector-${ann.id}`}>
-                                {/* Connector line with arrow */}
-                                <Arrow
-                                  points={[
-                                    shapePoint.x,
-                                    shapePoint.y,
-                                    labelPoint.x,
-                                    labelPoint.y,
-                                  ]}
-                                  stroke={ann.color}
-                                  fill={ann.color}
-                                  strokeWidth={3}
-                                  pointerLength={12}
-                                  pointerWidth={12}
-                                  lineCap="round"
-                                  opacity={0.85}
+                          {selectedAnnotations
+                            .filter((ann) => ann.type !== "textbox")
+                            .flatMap((ann) =>
+                              ann.points.map((p, idx) => (
+                                <Circle
+                                  key={`sel-pt-${ann.id}-${idx}`}
+                                  x={p.x}
+                                  y={p.y}
+                                  radius={4}
+                                  fill="#3b82f6"
+                                  stroke="#bfdbfe"
+                                  strokeWidth={1}
+                                  draggable
+                                  onMouseDown={(e) => {
+                                    e.cancelBubble = true;
+                                    handleLabelClick(ann.id, e);
+                                  }}
+                                  onClick={(e) => {
+                                    e.cancelBubble = true;
+                                    handleLabelClick(ann.id, e);
+                                  }}
+                                  onTap={(e) => {
+                                    e.cancelBubble = true;
+                                    handleLabelClick(ann.id, e);
+                                  }}
+                                  onDragMove={(e) => {
+                                    e.cancelBubble = true;
+                                    const pos = e.target.getPosition();
+                                    updateAnnotationPoint(ann.id, idx, pos.x, pos.y);
+                                  }}
+                                  onDragEnd={(e) => {
+                                    e.cancelBubble = true;
+                                    const pos = e.target.getPosition();
+                                    updateAnnotationPoint(ann.id, idx, pos.x, pos.y);
+                                  }}
                                 />
-                              </Group>
-                            );
-                          })}
-
-                          {/* Render text labels */}
-                          {annotations.map((ann) => {
-                            const anchor = getAnnotationAnchorPoint(ann);
-                            return (
+                              ))
+                            )}
+                          {selectionRect && currentTool === "select" && (
+                            <Rect
+                              x={selectionRect.x}
+                              y={selectionRect.y}
+                              width={selectionRect.width}
+                              height={selectionRect.height}
+                              stroke="#3b82f6"
+                              strokeWidth={1}
+                              dash={[4, 4]}
+                              fill="rgba(59, 130, 246, 0.08)"
+                              listening={false}
+                            />
+                          )}
+                          {annotations
+                            .filter((ann) => ann.type === "textbox")
+                            .map((ann) => (
                               <TextLabel
                                 key={`label-${ann.id}`}
-                                annotation={{ ...ann, labelOffset: anchor }}
+                                annotation={ann}
                                 onDragEnd={handleLabelDragEnd}
                                 onTransformEnd={handleLabelTransformEnd}
-                                onDoubleClick={handleLabelDoubleClick}
+                                onDoubleClick={handleTextboxDoubleClick}
                                 onClick={handleLabelClick}
-                                isSelected={selectedLabelId === ann.id}
+                                isSelected={selectedAnnotationIds.includes(ann.id)}
                               />
-                            );
-                          })}
+                            ))}
                         </Layer>
                       </Stage>
 
@@ -1039,8 +1220,8 @@ export const AnnotationEditor = ({
 
           <AnnotationList
             annotations={annotations}
-            selectedLabelId={selectedLabelId}
-            onSelectAnnotation={setSelectedLabelId}
+            selectedLabelIds={selectedAnnotationIds}
+            onSelectAnnotation={(id) => setSelectedAnnotationIds([id])}
             onDeleteAnnotation={deleteAnnotation}
           />
         </div>
