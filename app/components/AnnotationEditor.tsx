@@ -747,6 +747,28 @@ export const AnnotationEditor = ({
 
   }, [originalCapturedImage, onRevisionComplete, onError]);
 
+  const handleDownloadImage = useCallback(() => {
+    if (!stageRef.current || !activeImage) {
+      onError("Image is not ready to download yet.");
+      return;
+    }
+
+    try {
+      const dataUrl = stageRef.current.toDataURL({ pixelRatio: 1 });
+      const extension = activeImage.mimeType === "image/jpeg" ? "jpg" : "png";
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `landscape-${Date.now()}.${extension}`;
+      link.click();
+    } catch (err) {
+      onError(
+        err instanceof Error
+          ? err.message
+          : "Failed to download image. Please try again."
+      );
+    }
+  }, [activeImage, onError]);
+
   const applyZoomFactor = useCallback(
     (factor: number, cursorX?: number, cursorY?: number) => {
       const scrollContainer = mainScrollRef.current;
@@ -968,6 +990,8 @@ export const AnnotationEditor = ({
             onSendForRevision={sendForRevision}
             isInitialImage={revisionHistory[revisionHistory.length - 1]?.parentId === null}
             onSendForNewInitialImage={sendForNewInitialImage}
+            onDownloadImage={handleDownloadImage}
+            onBack={onCancel}
           />
 
           <div

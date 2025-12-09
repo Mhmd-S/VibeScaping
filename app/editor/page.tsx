@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+
 import { AnnotationEditor } from '../components/AnnotationEditor';
 import { GeneratedImage, RevisionNode } from '../types/landscape';
+import { Project } from '../types/project';
 import {
     clearGenerationSession,
     loadGenerationSession,
@@ -18,6 +20,13 @@ const EditorPage = () => {
     const [currentRevisionId, setCurrentRevisionId] = useState<string | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+    const [projectLoadError, setProjectLoadError] = useState<string | null>(null);
+    const [selectedProjectId, setSelectedProjectId] = useState('');
+    const [isSavingToProject, setIsSavingToProject] = useState(false);
+    const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
+    const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
 
     useEffect(() => {
         const session = loadGenerationSession();
@@ -30,6 +39,35 @@ const EditorPage = () => {
         setOriginalCapturedImage(session.originalCapturedImage);
         setRevisionHistory(session.revisionHistory);
         setCurrentRevisionId(session.currentRevisionId);
+    }, []);
+
+    useEffect(() => {
+        const fetchProjects = async () => {
+            setIsLoadingProjects(true);
+            setProjectLoadError(null);
+            try {
+                const response = await fetch('/api/projects', { cache: 'no-store' });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data?.error || 'Unable to load projects');
+                }
+
+                const loadedProjects: Project[] = data.projects ?? [];
+                setProjects(loadedProjects);
+                if (loadedProjects.length > 0 && !selectedProjectId) {
+                    setSelectedProjectId(loadedProjects[0].id);
+                }
+            } catch (err) {
+                setProjectLoadError(
+                    err instanceof Error ? err.message : 'Unable to load projects',
+                );
+            } finally {
+                setIsLoadingProjects(false);
+            }
+        };
+
+        fetchProjects();
     }, []);
 
     const persistSession = useCallback((next: {
@@ -122,6 +160,53 @@ const EditorPage = () => {
         document.body.removeChild(link);
     }, [generatedImage]);
 
+    const handleSaveToProject = useCallback(async () => {
+        if (!generatedImage) {
+            setSaveErrorMessage('Nothing to save yet.');
+            return;
+        }
+
+        if (!selectedProjectId) {
+            setSaveErrorMessage('Please select a project before saving.');
+            return;
+        }
+
+        setIsSavingToProject(true);
+        setSaveSuccessMessage(null);
+        setSaveErrorMessage(null);
+
+        try {
+            const response = await fetch(`/api/projects/${selectedProjectId}/designs`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    generatedImageBase64: generatedImage.image,
+                    generatedMimeType: generatedImage.mimeType,
+                    originalImageBase64: originalCapturedImage?.image,
+                    originalMimeType: originalCapturedImage?.mimeType,
+                    revisionHistory,
+                    description: generatedImage.description,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data?.error || 'Unable to save design');
+            }
+
+            setSaveSuccessMessage('Saved to project and CDN');
+        } catch (err) {
+            setSaveErrorMessage(
+                err instanceof Error ? err.message : 'Unable to save design',
+            );
+        } finally {
+            setIsSavingToProject(false);
+        }
+    }, [generatedImage, originalCapturedImage, revisionHistory, selectedProjectId]);
+
     if (loadError) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black">
@@ -134,7 +219,7 @@ const EditorPage = () => {
                     </p>
                     <div className="flex gap-3">
                         <button
-                            onClick={() => router.push('/')}
+                            onClick={() => router.push('/map')}
                             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                         >
                             Go to Map
@@ -165,10 +250,62 @@ const EditorPage = () => {
 
     return (
         <div className="relative min-h-screen bg-zinc-900">
+            <div className="flex flex-col gap-2 border-b border-white/10 bg-black/40 px-4 py-3 backdrop-blur">
+                <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-col">
+                        <p className="text-xs uppercase tracking-wide text-green-200">Persistence</p>
+                        <p className="text-sm text-white">
+                            Save this design to a project and upload images to Cloudflare.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <select
+                            value={selectedProjectId}
+                            onChange={(event) => setSelectedProjectId(event.target.value)}
+                            disabled={isLoadingProjects || projects.length === 0}
+                            className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white shadow-sm outline-none transition focus:border-green-400 focus:ring-2 focus:ring-green-600/50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {projects.map((project) => (
+                                <option key={project.id} value={project.id}>
+                                    {project.name}
+                                </option>
+                            ))}
+                        </select>
+                        <button
+                            type="button"
+                            onClick={handleSaveToProject}
+                            disabled={isSavingToProject || isLoadingProjects || projects.length === 0}
+                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {isSavingToProject ? 'Saving...' : 'Save to project'}
+                        </button>
+                    </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                    {projectLoadError && (
+                        <span className="text-red-300">
+                            {projectLoadError}
+                        </span>
+                    )}
+                    {saveErrorMessage && (
+                        <span className="text-red-300">
+                            {saveErrorMessage}
+                        </span>
+                    )}
+                    {saveSuccessMessage && (
+                        <span className="text-green-300">
+                            {saveSuccessMessage}
+                        </span>
+                    )}
+                    {isLoadingProjects && (
+                        <span className="text-zinc-200">Loading projects...</span>
+                    )}
+                </div>
+            </div>
             <AnnotationEditor
                 generatedImage={generatedImage}
                 originalCapturedImage={originalCapturedImage}
-                onCancel={() => { router.push('/'); }}
+                onCancel={() => { router.push('/map'); }}
                 onRevisionComplete={handleRevisionComplete}
                 onError={(message) => setErrorMessage(message)}
             />

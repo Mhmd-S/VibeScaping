@@ -26,6 +26,7 @@
     "react-dom": "19.2.0",
     "react-konva": "^19.2.1",
     "simplify-js": "^1.2.4",
+        "@aws-sdk/client-s3": "^3.744.0",
     "zod": "^4.1.13"
   },
   "devDependencies": {

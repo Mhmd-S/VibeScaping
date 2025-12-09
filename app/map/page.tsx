@@ -1,16 +1,19 @@
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 
+import MapView from './MapView';
 import { authOptions } from '@/lib/auth';
 
-const Home = async () => {
+const MapPage = async () => {
     const session = await getServerSession(authOptions);
 
-    if (session?.user?.id) {
-        redirect('/dashboard');
+    if (!session?.user?.id) {
+        redirect('/login?callbackUrl=/map');
     }
 
-    redirect('/login');
+    return <MapView />;
 };
 
-export default Home;
+export default MapPage;
+
+

@@ -31,8 +31,25 @@ model Project {
     lastOpenedAt DateTime?
 
     owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+    designs Design[]
 
     @@index([ownerId])
+}
+
+model Design {
+    id                String   @id @default(cuid())
+    projectId         String
+    generatedImageUrl String
+    originalImageUrl  String?
+    mimeType          String
+    description       String?
+    revisionHistory   Json?
+    createdAt         DateTime @default(now())
+    updatedAt         DateTime @updatedAt
+
+    project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+    @@index([projectId])
 }
 
 model Account {

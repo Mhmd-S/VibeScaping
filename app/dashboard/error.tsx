@@ -26,10 +26,10 @@ const DashboardError = ({
                     Try again
                 </button>
                 <Link
-                    href="/"
+                    href="/dashboard"
                     className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:border-blue-500 hover:text-blue-600 dark:border-zinc-700 dark:text-zinc-100 dark:hover:border-blue-400 dark:hover:text-blue-300"
                 >
-                    Go home
+                    Go to dashboard
                 </Link>
             </div>
         </div>
