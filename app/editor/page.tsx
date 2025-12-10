@@ -355,7 +355,7 @@ const EditorPage = () => {
             <AnnotationEditor
                 generatedImage={generatedImage}
                 originalCapturedImage={originalCapturedImage}
-                onCancel={() => { router.push('/map'); }}
+                onCancel={() => { router.push('/dashboard'); }}
                 onRevisionComplete={handleRevisionComplete}
                 onError={(message) => setErrorMessage(message)}
             />

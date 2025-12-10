@@ -1,9 +1,12 @@
 'use client';
 
-import { Folder, Loader2, Plus, RefreshCcw } from 'lucide-react';
+import { ArrowUpRight, Folder, ImageIcon, Loader2, Plus, RefreshCcw } from 'lucide-react';
+import Image from 'next/image';
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { Button } from '@/app/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader } from '@/app/components/ui/card';
 import { Project } from '@/app/types/project';
 
 interface ProjectDashboardProps {
@@ -33,17 +36,13 @@ const buildPlaceholderName = () => {
     return `Landscape Project ${formatted}`;
 };
 
-const rememberActiveProject = (projectId: string) => {
-    if (typeof window === 'undefined') return;
-    sessionStorage.setItem('active-project-id', projectId);
-};
-
 const ProjectDashboard = ({ initialProjects }: ProjectDashboardProps) => {
     const router = useRouter();
     const [projects, setProjects] = useState<Project[]>(initialProjects);
     const [error, setError] = useState<string | null>(null);
     const [isCreating, setIsCreating] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
     const hasProjects = useMemo(() => projects.length > 0, [projects]);
 
@@ -89,7 +88,6 @@ const ProjectDashboard = ({ initialProjects }: ProjectDashboardProps) => {
             }
 
             setProjects((current) => [result.project, ...current]);
-            rememberActiveProject(result.project.id);
             router.push(`/map?projectId=${result.project.id}`);
         } catch (creationError) {
             setError(creationError instanceof Error ? creationError.message : 'Could not create project');
@@ -99,7 +97,6 @@ const ProjectDashboard = ({ initialProjects }: ProjectDashboardProps) => {
     };
 
     const handleOpenProject = (projectId: string) => {
-        rememberActiveProject(projectId);
         router.push(`/editor?projectId=${projectId}`);
     };
 
@@ -180,10 +177,11 @@ const ProjectDashboard = ({ initialProjects }: ProjectDashboardProps) => {
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         {projects.map((project) => {
                             const latestDesignUrl = project.lastDesign?.generatedImageUrl;
+                            const hasPreview = latestDesignUrl && !imageErrors[project.id];
                             const projectUpdated = formatDate(project.updatedAt);
 
                             return (
-                                <div
+                                <Card
                                     key={project.id}
                                     role="button"
                                     tabIndex={0}
@@ -194,54 +192,70 @@ const ProjectDashboard = ({ initialProjects }: ProjectDashboardProps) => {
                                             handleOpenProject(project.id);
                                         }
                                     }}
-                                    className="group flex h-full flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-green-500 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                                    className="group flex h-full cursor-pointer flex-col overflow-hidden transition hover:-translate-y-0.5 hover:border-green-500 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
                                 >
-                                    {latestDesignUrl ? (
-                                        <div className="relative h-44 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-900">
-                                            <img
-                                                src={latestDesignUrl}
-                                                alt={`Latest design for ${project.name}`}
-                                                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                                            />
-                                            <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
-                                            <div className="absolute bottom-3 left-3 flex items-center gap-2 text-xs text-white">
-                                                <span className="rounded-full bg-white/15 px-2 py-1 font-semibold">
-                                                    Latest design
-                                                </span>
-                                                <span className="text-white/80">Updated {projectUpdated}</span>
+                                    <CardHeader className="p-0">
+                                        <div className="relative h-48 w-full overflow-hidden bg-zinc-100">
+                                            {hasPreview ? (
+                                                <Image
+                                                    src={latestDesignUrl}
+                                                    alt={`Latest design for ${project.name}`}
+                                                    fill
+                                                    unoptimized
+                                                    sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
+                                                    className="object-cover transition duration-300 group-hover:scale-105"
+                                                    onError={() => setImageErrors((prev) => ({ ...prev, [project.id]: true }))}
+                                                />
+                                            ) : (
+                                                <div className="flex h-full w-full flex-col items-center justify-center gap-2 border-b border-dashed border-zinc-200 bg-zinc-50 text-sm text-zinc-500">
+                                                    <ImageIcon className="h-6 w-6 text-zinc-400" />
+                                                    <span>No preview yet</span>
+                                                </div>
+                                            )}
+                                            <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent opacity-90" />
+                                            <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-white">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="rounded-full bg-white/15 px-2 py-1 font-semibold">
+                                                        Open in editor
+                                                    </span>
+                                                    <span className="text-white/80">Updated {projectUpdated}</span>
+                                                </div>
+                                                <ArrowUpRight className="h-4 w-4 text-white" />
                                             </div>
                                         </div>
-                                    ) : (
-                                        <div className="flex h-44 items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 text-sm text-zinc-500 shadow-inner dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-300">
-                                            No designs yet. Click to start in the editor.
-                                        </div>
-                                    )}
-
-                                    <div className="flex items-start justify-between gap-3">
+                                    </CardHeader>
+                                    <CardContent className="flex flex-1 flex-col gap-3 p-4">
                                         <div className="space-y-2">
-                                            <div className="flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                                                <Folder className="h-4 w-4" />
-                                                Updated {projectUpdated}
-                                            </div>
-                                            <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
-                                                {project.name}
-                                            </p>
+                                            <p className="text-base font-semibold text-zinc-900">{project.name}</p>
                                             {project.description && (
-                                                <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2">
+                                                <p className="text-sm text-zinc-600 line-clamp-2">
                                                     {project.description}
                                                 </p>
                                             )}
                                             {project.lastDesign?.description && (
-                                                <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">
+                                                <p className="text-xs text-zinc-500 line-clamp-2">
                                                     Last design: {project.lastDesign.description}
                                                 </p>
                                             )}
                                         </div>
-                                        <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-                                            Continue in editor
-                                        </span>
-                                    </div>
-                                </div>
+                                    </CardContent>
+                                    <CardFooter className="items-center justify-between border-t border-zinc-100">
+                                        <div className="flex items-center gap-2 text-xs font-medium text-zinc-500">
+                                            <Folder className="h-4 w-4" />
+                                            Updated {projectUpdated}
+                                        </div>
+                                        <Button
+                                            size="sm"
+                                            variant="secondary"
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                handleOpenProject(project.id);
+                                            }}
+                                        >
+                                            Open
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
                             );
                         })}
                     </div>
