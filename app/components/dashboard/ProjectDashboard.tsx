@@ -2,12 +2,13 @@
 
 import { Folder, Loader2, Plus, RefreshCcw } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import { Project } from '@/app/types/project';
 
 interface ProjectDashboardProps {
     initialProjects: Project[];
-    userName: string;
+    userName?: string;
 }
 
 const formatDate = (value: string) => {
@@ -21,14 +22,28 @@ const formatDate = (value: string) => {
     });
 };
 
-const ProjectDashboard = ({ initialProjects, userName }: ProjectDashboardProps) => {
+const buildPlaceholderName = () => {
+    const now = new Date();
+    const formatted = now.toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+    return `Landscape Project ${formatted}`;
+};
+
+const rememberActiveProject = (projectId: string) => {
+    if (typeof window === 'undefined') return;
+    sessionStorage.setItem('active-project-id', projectId);
+};
+
+const ProjectDashboard = ({ initialProjects }: ProjectDashboardProps) => {
+    const router = useRouter();
     const [projects, setProjects] = useState<Project[]>(initialProjects);
-    const [name, setName] = useState('');
-    const [description, setDescription] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [isCreating, setIsCreating] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [showCreatePanel, setShowCreatePanel] = useState(false);
 
     const hasProjects = useMemo(() => projects.length > 0, [projects]);
 
@@ -37,7 +52,7 @@ const ProjectDashboard = ({ initialProjects, userName }: ProjectDashboardProps) 
         setError(null);
 
         try {
-            const response = await fetch('/api/projects');
+            const response = await fetch('/api/projects', { cache: 'no-store' });
             const body = await response.json();
 
             if (!response.ok) {
@@ -52,24 +67,8 @@ const ProjectDashboard = ({ initialProjects, userName }: ProjectDashboardProps) 
         }
     };
 
-    const handleCreateOpen = () => {
-        setError(null);
-        setShowCreatePanel(true);
-    };
-
-    const handleCreateClose = () => {
+    const createAndGoToMap = async () => {
         if (isCreating) return;
-        setName('');
-        setDescription('');
-        setError(null);
-        setShowCreatePanel(false);
-    };
-
-    const handleCreateProject = async () => {
-        if (!name.trim()) {
-            setError('Please provide a project name.');
-            return;
-        }
 
         setIsCreating(true);
         setError(null);
@@ -80,7 +79,7 @@ const ProjectDashboard = ({ initialProjects, userName }: ProjectDashboardProps) 
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ name: name.trim(), description: description.trim() || undefined }),
+                body: JSON.stringify({ name: buildPlaceholderName(), description: '' }),
             });
 
             const result = await response.json();
@@ -90,9 +89,8 @@ const ProjectDashboard = ({ initialProjects, userName }: ProjectDashboardProps) 
             }
 
             setProjects((current) => [result.project, ...current]);
-            setName('');
-            setDescription('');
-            setShowCreatePanel(false);
+            rememberActiveProject(result.project.id);
+            router.push(`/map?projectId=${result.project.id}`);
         } catch (creationError) {
             setError(creationError instanceof Error ? creationError.message : 'Could not create project');
         } finally {
@@ -100,9 +98,14 @@ const ProjectDashboard = ({ initialProjects, userName }: ProjectDashboardProps) 
         }
     };
 
+    const handleOpenProject = (projectId: string) => {
+        rememberActiveProject(projectId);
+        router.push(`/editor?projectId=${projectId}`);
+    };
+
     return (
         <div className="w-full space-y-8" id="projects">
-            <div className="relative overflow-hidden rounded-3xl border border-zinc-200 bg-gradient-to-r from-green-50 via-white to-emerald-50 p-8 shadow-sm">
+            <div className="relative overflow-hidden rounded-3xl border border-zinc-200 bg-linear-to-r from-green-50 via-white to-emerald-50 p-8 shadow-sm">
                 <div className="pointer-events-none absolute inset-0 opacity-40 blur-3xl">
                     <div className="absolute left-0 top-0 h-48 w-48 rounded-full bg-green-300/40" />
                     <div className="absolute right-10 top-10 h-32 w-32 rounded-full bg-emerald-300/30" />
@@ -118,9 +121,9 @@ const ProjectDashboard = ({ initialProjects, userName }: ProjectDashboardProps) 
                     <div className="flex flex-wrap items-center gap-3">
                         <button
                             type="button"
-                            onClick={handleCreateOpen}
+                            onClick={createAndGoToMap}
                             disabled={isCreating}
-                            className="group flex items-center gap-2 rounded-full bg-gradient-to-r from-green-600 to-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-green-200 transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 disabled:cursor-not-allowed disabled:opacity-70"
+                            className="group flex items-center gap-2 rounded-full bg-linear-to-r from-green-600 to-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-green-200 transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 disabled:cursor-not-allowed disabled:opacity-70"
                         >
                             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15">
                                 {isCreating ? (
@@ -129,81 +132,15 @@ const ProjectDashboard = ({ initialProjects, userName }: ProjectDashboardProps) 
                                     <Plus className="h-4 w-4" />
                                 )}
                             </span>
-                            New Project
+                            {isCreating ? 'Creating...' : 'New Project'}
                         </button>
                     </div>
                 </div>
             </div>
 
-            {showCreatePanel && (
-                <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm ring-1 ring-zinc-200 dark:border-zinc-800 dark:bg-zinc-900 dark:ring-zinc-800">
-                    <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                        <div>
-                            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Start a project</h3>
-                            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                                Give your project a name and optional description.
-                            </p>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={handleCreateClose}
-                            disabled={isCreating}
-                            className="text-sm font-semibold text-zinc-500 transition hover:text-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:text-zinc-400 dark:hover:text-zinc-200"
-                        >
-                            Cancel
-                        </button>
-                    </div>
-
-                    {error && (
-                        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-900/50 dark:text-red-200">
-                            {error}
-                        </div>
-                    )}
-
-                    <div className="mt-4 grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Project name</label>
-                            <input
-                                value={name}
-                                onChange={(event) => setName(event.target.value)}
-                                placeholder="Backyard redesign"
-                                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-blue-400 dark:focus:ring-blue-900"
-                                maxLength={120}
-                            />
-                        </div>
-                        <div className="space-y-2 md:col-span-2">
-                            <label className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                                Description (optional)
-                            </label>
-                            <textarea
-                                value={description}
-                                onChange={(event) => setDescription(event.target.value)}
-                                placeholder="Notes about style, scope, or next steps."
-                                className="min-h-[96px] w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-blue-400 dark:focus:ring-blue-900"
-                                maxLength={500}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap gap-3">
-                        <button
-                            type="button"
-                            onClick={handleCreateProject}
-                            disabled={isCreating}
-                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-blue-500 dark:hover:bg-blue-600"
-                        >
-                            {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                            {isCreating ? 'Creating...' : 'Create project'}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleCreateClose}
-                            disabled={isCreating}
-                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:border-zinc-300 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:border-zinc-600 dark:hover:text-zinc-50"
-                        >
-                            Cancel
-                        </button>
-                    </div>
+            {error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-900/50 dark:text-red-200">
+                    {error}
                 </div>
             )}
 
@@ -215,15 +152,15 @@ const ProjectDashboard = ({ initialProjects, userName }: ProjectDashboardProps) 
                             Projects you've created are listed below.
                         </p>
                     </div>
-                <div className="flex flex-wrap items-center gap-3">
-                    <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold text-zinc-700">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold text-zinc-700">
                             {projects.length} {projects.length === 1 ? 'project' : 'projects'}
                         </span>
                         <button
                             type="button"
                             onClick={refreshProjects}
                             disabled={isRefreshing}
-                        className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-800 transition hover:border-green-500 hover:text-green-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-800 transition hover:border-green-500 hover:text-green-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {isRefreshing ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -241,30 +178,72 @@ const ProjectDashboard = ({ initialProjects, userName }: ProjectDashboardProps) 
                     </div>
                 ) : (
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                        {projects.map((project) => (
-                            <div
-                                key={project.id}
-                                className="group flex h-full flex-col rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-green-500 hover:shadow-md"
-                            >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="space-y-2">
-                                        <div className="flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                                            <Folder className="h-4 w-4" />
-                                            Updated {formatDate(project.updatedAt)}
+                        {projects.map((project) => {
+                            const latestDesignUrl = project.lastDesign?.generatedImageUrl;
+                            const projectUpdated = formatDate(project.updatedAt);
+
+                            return (
+                                <div
+                                    key={project.id}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => handleOpenProject(project.id)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === 'Enter' || event.key === ' ') {
+                                            event.preventDefault();
+                                            handleOpenProject(project.id);
+                                        }
+                                    }}
+                                    className="group flex h-full flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-green-500 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                                >
+                                    {latestDesignUrl ? (
+                                        <div className="relative h-44 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-900">
+                                            <img
+                                                src={latestDesignUrl}
+                                                alt={`Latest design for ${project.name}`}
+                                                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                                            />
+                                            <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
+                                            <div className="absolute bottom-3 left-3 flex items-center gap-2 text-xs text-white">
+                                                <span className="rounded-full bg-white/15 px-2 py-1 font-semibold">
+                                                    Latest design
+                                                </span>
+                                                <span className="text-white/80">Updated {projectUpdated}</span>
+                                            </div>
                                         </div>
-                                        <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
-                                            {project.name}
-                                        </p>
-                                        {project.description && (
-                                            <p className="text-sm text-zinc-600 dark:text-zinc-400">{project.description}</p>
-                                        )}
+                                    ) : (
+                                        <div className="flex h-44 items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 text-sm text-zinc-500 shadow-inner dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-300">
+                                            No designs yet. Click to start in the editor.
+                                        </div>
+                                    )}
+
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                                                <Folder className="h-4 w-4" />
+                                                Updated {projectUpdated}
+                                            </div>
+                                            <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
+                                                {project.name}
+                                            </p>
+                                            {project.description && (
+                                                <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2">
+                                                    {project.description}
+                                                </p>
+                                            )}
+                                            {project.lastDesign?.description && (
+                                                <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">
+                                                    Last design: {project.lastDesign.description}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+                                            Continue in editor
+                                        </span>
                                     </div>
-                                    <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700">
-                                        Map ready
-                                    </span>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>

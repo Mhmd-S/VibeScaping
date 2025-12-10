@@ -20,15 +20,42 @@ export async function GET() {
     const projects = await prisma.project.findMany({
         where: { ownerId: session.user.id },
         orderBy: { updatedAt: 'desc' },
+        include: {
+            designs: {
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+                select: {
+                    id: true,
+                    generatedImageUrl: true,
+                    originalImageUrl: true,
+                    mimeType: true,
+                    description: true,
+                    createdAt: true,
+                    updatedAt: true,
+                },
+            },
+        },
     });
 
     return NextResponse.json({
-        projects: projects.map((project) => ({
-            ...project,
-            createdAt: project.createdAt.toISOString(),
-            updatedAt: project.updatedAt.toISOString(),
-            lastOpenedAt: project.lastOpenedAt?.toISOString() ?? null,
-        })),
+        projects: projects.map((project) => {
+            const { designs, ...projectData } = project;
+            const [latestDesign] = designs;
+
+            return {
+                ...projectData,
+                createdAt: project.createdAt.toISOString(),
+                updatedAt: project.updatedAt.toISOString(),
+                lastOpenedAt: project.lastOpenedAt?.toISOString() ?? null,
+                lastDesign: latestDesign
+                    ? {
+                          ...latestDesign,
+                          createdAt: latestDesign.createdAt.toISOString(),
+                          updatedAt: latestDesign.updatedAt.toISOString(),
+                      }
+                    : null,
+            };
+        }),
     });
 }
 

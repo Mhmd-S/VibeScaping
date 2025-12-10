@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import { AnnotationEditor } from '../components/AnnotationEditor';
 import { GeneratedImage, RevisionNode } from '../types/landscape';
@@ -14,6 +14,7 @@ import {
 
 const EditorPage = () => {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [generatedImage, setGeneratedImage] = useState<GeneratedImage | null>(null);
     const [originalCapturedImage, setOriginalCapturedImage] = useState<GeneratedImage | null>(null);
     const [revisionHistory, setRevisionHistory] = useState<RevisionNode[]>([]);
@@ -24,13 +25,17 @@ const EditorPage = () => {
     const [isLoadingProjects, setIsLoadingProjects] = useState(false);
     const [projectLoadError, setProjectLoadError] = useState<string | null>(null);
     const [selectedProjectId, setSelectedProjectId] = useState('');
+    const [sessionProjectId, setSessionProjectId] = useState<string | null | undefined>(undefined);
     const [isSavingToProject, setIsSavingToProject] = useState(false);
     const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
     const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
+    const [hasInitializedProjects, setHasInitializedProjects] = useState(false);
+    const [hasAutoSavedInitial, setHasAutoSavedInitial] = useState(false);
 
     useEffect(() => {
         const session = loadGenerationSession();
         if (!session) {
+            setSessionProjectId(null);
             setLoadError('No generated landscape found. Please create one on the map page first.');
             return;
         }
@@ -39,10 +44,23 @@ const EditorPage = () => {
         setOriginalCapturedImage(session.originalCapturedImage);
         setRevisionHistory(session.revisionHistory);
         setCurrentRevisionId(session.currentRevisionId);
+        setSessionProjectId(session.projectId ?? null);
+        setSelectedProjectId(session.projectId ?? '');
     }, []);
 
     useEffect(() => {
+        const projectIdFromQuery = searchParams.get('projectId');
+        if (!projectIdFromQuery) return;
+        setSelectedProjectId(projectIdFromQuery);
+        setSessionProjectId(projectIdFromQuery);
+    }, [searchParams]);
+
+    useEffect(() => {
         const fetchProjects = async () => {
+            if (hasInitializedProjects || sessionProjectId === undefined) {
+                return;
+            }
+
             setIsLoadingProjects(true);
             setProjectLoadError(null);
             try {
@@ -55,9 +73,18 @@ const EditorPage = () => {
 
                 const loadedProjects: Project[] = data.projects ?? [];
                 setProjects(loadedProjects);
-                if (loadedProjects.length > 0 && !selectedProjectId) {
-                    setSelectedProjectId(loadedProjects[0].id);
+                const preferredProjectId =
+                    (selectedProjectId && loadedProjects.some((project) => project.id === selectedProjectId))
+                        ? selectedProjectId
+                        : (sessionProjectId && loadedProjects.some((project) => project.id === sessionProjectId))
+                            ? sessionProjectId
+                            : loadedProjects[0]?.id ?? '';
+
+                if (preferredProjectId) {
+                    setSelectedProjectId(preferredProjectId);
+                    setSessionProjectId((previous) => previous ?? preferredProjectId);
                 }
+                setHasInitializedProjects(true);
             } catch (err) {
                 setProjectLoadError(
                     err instanceof Error ? err.message : 'Unable to load projects',
@@ -68,7 +95,7 @@ const EditorPage = () => {
         };
 
         fetchProjects();
-    }, []);
+    }, [selectedProjectId, sessionProjectId, hasInitializedProjects]);
 
     const persistSession = useCallback((next: {
         generatedImage: GeneratedImage;
@@ -81,10 +108,78 @@ const EditorPage = () => {
             revisionHistory: next.revisionHistory,
             currentRevisionId: next.currentRevisionId,
             isReplicaApproved: true,
+            projectId: selectedProjectId || sessionProjectId || null,
         });
-    }, [originalCapturedImage]);
+    }, [originalCapturedImage, selectedProjectId, sessionProjectId]);
 
-    const handleRevisionComplete = useCallback((data: {
+    const autoSaveDesign = useCallback(async (overrides?: {
+        generatedImage?: GeneratedImage;
+        revisionHistory?: RevisionNode[];
+        currentRevisionId?: string | null;
+        projectId?: string | null;
+    }) => {
+        if (isSavingToProject) return;
+
+        const projectId = overrides?.projectId ?? selectedProjectId ?? sessionProjectId;
+        const imagePayload = overrides?.generatedImage ?? generatedImage;
+        const revisionPayload = overrides?.revisionHistory ?? revisionHistory;
+        const revisionIdPayload = overrides?.currentRevisionId ?? currentRevisionId;
+
+        if (!projectId) {
+            return;
+        }
+
+        if (!imagePayload) {
+            setSaveErrorMessage('Nothing to save yet.');
+            return;
+        }
+
+        setIsSavingToProject(true);
+        setSaveSuccessMessage(null);
+        setSaveErrorMessage(null);
+
+        try {
+            const response = await fetch(`/api/projects/${projectId}/designs`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    generatedImageBase64: imagePayload.image,
+                    generatedMimeType: imagePayload.mimeType,
+                    originalImageBase64: originalCapturedImage?.image,
+                    originalMimeType: originalCapturedImage?.mimeType,
+                    revisionHistory: revisionPayload,
+                    description: imagePayload.description,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data?.error || 'Unable to save design');
+            }
+
+            setSaveSuccessMessage('Progress saved to project and CDN');
+            setSessionProjectId(projectId);
+            saveGenerationSession({
+                generatedImage: imagePayload,
+                originalCapturedImage,
+                revisionHistory: revisionPayload,
+                currentRevisionId: revisionIdPayload ?? null,
+                isReplicaApproved: true,
+                projectId,
+            });
+        } catch (err) {
+            setSaveErrorMessage(
+                err instanceof Error ? err.message : 'Unable to save design',
+            );
+        } finally {
+            setIsSavingToProject(false);
+        }
+    }, [selectedProjectId, sessionProjectId, generatedImage, originalCapturedImage, revisionHistory, currentRevisionId, isSavingToProject]);
+
+    const handleRevisionComplete = useCallback(async (data: {
         image: string;
         mimeType: string;
         description?: string;
@@ -110,36 +205,25 @@ const EditorPage = () => {
         setRevisionHistory(updatedHistory);
         setCurrentRevisionId(newRevisionId);
 
+        const nextGeneratedImage = {
+            image: data.image,
+            mimeType: data.mimeType,
+            description: data.description,
+        };
+
         persistSession({
             generatedImage: {
-                image: data.image,
-                mimeType: data.mimeType,
-                description: data.description,
+                ...nextGeneratedImage,
             },
             revisionHistory: updatedHistory,
             currentRevisionId: newRevisionId,
         });
-    }, [currentRevisionId, revisionHistory, persistSession]);
-
-    const switchToRevision = useCallback((revisionId: string) => {
-        const revision = revisionHistory.find((r) => r.id === revisionId);
-        if (!revision) return;
-
-        setGeneratedImage({
-            image: revision.image,
-            mimeType: revision.mimeType,
+        await autoSaveDesign({
+            generatedImage: nextGeneratedImage,
+            revisionHistory: updatedHistory,
+            currentRevisionId: newRevisionId,
         });
-        setCurrentRevisionId(revisionId);
-
-        persistSession({
-            generatedImage: {
-                image: revision.image,
-                mimeType: revision.mimeType,
-            },
-            revisionHistory,
-            currentRevisionId: revisionId,
-        });
-    }, [revisionHistory, persistSession]);
+    }, [currentRevisionId, revisionHistory, persistSession, autoSaveDesign]);
 
     const handleClearSession = useCallback(() => {
         clearGenerationSession();
@@ -150,62 +234,28 @@ const EditorPage = () => {
         setLoadError('Session cleared. Go back to the map page to start a new design.');
     }, []);
 
-    const handleDownload = useCallback(() => {
-        if (!generatedImage) return;
-        const link = document.createElement('a');
-        link.href = `data:${generatedImage.mimeType};base64,${generatedImage.image}`;
-        link.download = `landscape-map-${Date.now()}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }, [generatedImage]);
 
     const handleSaveToProject = useCallback(async () => {
-        if (!generatedImage) {
-            setSaveErrorMessage('Nothing to save yet.');
-            return;
-        }
-
         if (!selectedProjectId) {
             setSaveErrorMessage('Please select a project before saving.');
             return;
         }
+        await autoSaveDesign();
+    }, [selectedProjectId, autoSaveDesign]);
 
-        setIsSavingToProject(true);
-        setSaveSuccessMessage(null);
-        setSaveErrorMessage(null);
-
-        try {
-            const response = await fetch(`/api/projects/${selectedProjectId}/designs`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    generatedImageBase64: generatedImage.image,
-                    generatedMimeType: generatedImage.mimeType,
-                    originalImageBase64: originalCapturedImage?.image,
-                    originalMimeType: originalCapturedImage?.mimeType,
-                    revisionHistory,
-                    description: generatedImage.description,
-                }),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data?.error || 'Unable to save design');
-            }
-
-            setSaveSuccessMessage('Saved to project and CDN');
-        } catch (err) {
-            setSaveErrorMessage(
-                err instanceof Error ? err.message : 'Unable to save design',
-            );
-        } finally {
-            setIsSavingToProject(false);
+    useEffect(() => {
+        const projectId = selectedProjectId || sessionProjectId;
+        if (!projectId || !generatedImage || hasAutoSavedInitial) {
+            return;
         }
-    }, [generatedImage, originalCapturedImage, revisionHistory, selectedProjectId]);
+
+        autoSaveDesign({
+            projectId,
+            generatedImage,
+            revisionHistory,
+            currentRevisionId,
+        }).finally(() => setHasAutoSavedInitial(true));
+    }, [autoSaveDesign, generatedImage, revisionHistory, currentRevisionId, selectedProjectId, sessionProjectId, hasAutoSavedInitial]);
 
     if (loadError) {
         return (

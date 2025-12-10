@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import type { Library } from '@react-google-maps/api';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import html2canvas from 'html2canvas';
 
 import { useCurrentLocation } from '@/app/hooks/useCurrentLocation';
@@ -24,6 +24,7 @@ const fallbackCenter: Location = {
 
 const MapView = () => {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { location, loading, error } = useCurrentLocation();
     const [isMapLoaded, setIsMapLoaded] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -63,6 +64,7 @@ const MapView = () => {
     }, [location, mapCenter]);
 
     const captureImage = useCallback(async () => {
+        const projectId = searchParams.get('projectId');
         if (!mapRef.current || !drawnPolygon || polygonPath.length === 0) {
             alert('Please draw a polygon first');
             return;
@@ -319,15 +321,16 @@ const MapView = () => {
                 ],
                 currentRevisionId: rootRevisionId,
                 isReplicaApproved: false,
+                projectId: projectId || null,
             });
 
-            router.push('/editor');
+            router.push(projectId ? `/editor?projectId=${projectId}` : '/editor');
         } catch (err) {
             setGenerateError(err instanceof Error ? err.message : 'Failed to generate landscape. Please try again.');
         } finally {
             setIsGenerating(false);
         }
-    }, [drawnPolygon, polygonPath, mapRef, hidePolygonOverlays, router]);
+    }, [drawnPolygon, polygonPath, mapRef, hidePolygonOverlays, router, searchParams]);
 
     const handleClearPolygon = useCallback(() => {
         clearPolygon();
