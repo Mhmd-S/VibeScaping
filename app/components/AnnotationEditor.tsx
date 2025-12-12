@@ -28,6 +28,52 @@ import { AnnotationHeader } from "./annotation/AnnotationHeader";
 import { CheckpointsDrawer } from "./annotation/CheckpointsDrawer";
 import { AnnotationList } from "./annotation/AnnotationList";
 
+const publicImageBaseUrl =
+  process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL || process.env.CLOUDFLARE_R2_PUBLIC_URL;
+
+const toPublicImageUrl = (originalUrl?: string | null) => {
+  if (!originalUrl) return undefined;
+  if (!publicImageBaseUrl) return originalUrl;
+
+  try {
+    const parsed = new URL(originalUrl);
+    const segments = parsed.pathname.split("/").filter(Boolean);
+
+    if (segments.length === 0) return originalUrl;
+
+    const keyPath =
+      segments[0] === "projects" ? segments.join("/") : segments.slice(1).join("/") || segments[0];
+    const normalizedBase = publicImageBaseUrl.replace(/\/$/, "");
+
+    return `${normalizedBase}/${keyPath}`;
+  } catch (error) {
+    console.warn("Failed to build public image URL, falling back to original", error);
+    return originalUrl;
+  }
+};
+
+const resolveImageSource = (image?: GeneratedImage | null) => {
+  if (!image?.image) return "";
+
+  const raw = image.image;
+
+  if (raw.startsWith("data:")) {
+    return raw;
+  }
+
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return toPublicImageUrl(raw) || raw;
+    }
+  } catch {
+    // Not a URL; treat as base64 below.
+  }
+
+  const mimeType = image.mimeType || "image/png";
+  return `data:${mimeType};base64,${raw}`;
+};
+
 interface AnnotationEditorProps {
   generatedImage: GeneratedImage;
   originalCapturedImage?: GeneratedImage | null;
@@ -121,12 +167,10 @@ export const AnnotationEditor = ({
   const selectionStartRef = useRef<Point | null>(null);
 
   // Load the main image
-  const imageSrc = useMemo(
-    () =>
-      activeImage?.image
-        ? `data:${activeImage.mimeType};base64,${activeImage.image}`
-        : "",
-    [activeImage]
+  const imageSrc = useMemo(() => resolveImageSource(activeImage), [activeImage]);
+  const referenceImageSrc = useMemo(
+    () => resolveImageSource(originalCapturedImage),
+    [originalCapturedImage]
   );
   const konvaImage = useImage(imageSrc);
 
@@ -717,35 +761,57 @@ export const AnnotationEditor = ({
 
     setIsRevising(true);
 
-  const response = await fetch("/api/generate-landscape", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      imageBase64: originalCapturedImage?.image,
-      mimeType: originalCapturedImage?.mimeType,
-      isRevision: false,
-    }),
-  });
+    try {
+      const response = await fetch("/api/generate-landscape", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageBase64: originalCapturedImage?.image,
+          mimeType: originalCapturedImage?.mimeType,
+          isRevision: false,
+        }),
+      });
 
-  const data = await response.json();
+      const data = await response.json();
 
-  if (!response.ok) {
-    throw new Error(
-      data.details || data.error || "Failed to generate new initial image"
-    );
-  }
+      if (!response.ok) {
+        throw new Error(
+          data.details || data.error || "Failed to generate new initial image"
+        );
+      }
 
-  setActiveImage({
-    image: data.image,
-    mimeType: data.mimeType,
-    description: data.description,
-  });
+      const newRevisionId = `rev-${Date.now()}`;
+      const nextRevision: RevisionNode = {
+        id: newRevisionId,
+        parentId: null,
+        image: data.image,
+        mimeType: data.mimeType,
+        annotations: [],
+        timestamp: Date.now(),
+        label: "Original",
+      };
 
-  setIsRevising(false);
+      setRevisionHistory([nextRevision]);
+      lastRevisionImageRef.current = data.image;
 
-  }, [originalCapturedImage, onRevisionComplete, onError]);
+      setActiveImage({
+        image: data.image,
+        mimeType: data.mimeType,
+        description: data.description,
+      });
+
+    } catch (err) {
+      onError(
+        err instanceof Error
+          ? err.message
+          : "Failed to generate new initial image. Please try again."
+      );
+    } finally {
+      setIsRevising(false);
+    }
+  }, [originalCapturedImage, onError]);
 
   const handleDownloadImage = useCallback(() => {
     if (!stageRef.current || !activeImage) {
@@ -974,6 +1040,7 @@ export const AnnotationEditor = ({
 
       <div className="fixed inset-x-0 bottom-0 top-0 z-50 flex bg-zinc-900">
         <AnnotationToolbar
+          onBack={onCancel}
           currentTool={currentTool}
           onToolChange={setCurrentTool}
           onZoomIn={zoomIn}
@@ -991,7 +1058,6 @@ export const AnnotationEditor = ({
             isInitialImage={revisionHistory[revisionHistory.length - 1]?.parentId === null}
             onSendForNewInitialImage={sendForNewInitialImage}
             onDownloadImage={handleDownloadImage}
-            onBack={onCancel}
           />
 
           <div
@@ -1216,7 +1282,7 @@ export const AnnotationEditor = ({
                         }}
                       >
                         <img
-                          src={`data:${originalCapturedImage.mimeType};base64,${originalCapturedImage.image}`}
+                          src={referenceImageSrc}
                           onLoad={handleReferenceLoad}
                           alt="Original reference capture"
                           className="block rounded-lg shadow"

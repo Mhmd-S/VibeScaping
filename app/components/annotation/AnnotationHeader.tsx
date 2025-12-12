@@ -1,5 +1,4 @@
 import {
-    ArrowLeft,
     Download,
     Loader2,
     RefreshCcw,
@@ -13,7 +12,6 @@ interface AnnotationHeaderProps {
   onSendForNewInitialImage: () => void;
   onSendForRevision: () => void;
   onDownloadImage: () => void;
-  onBack: () => void;
 }
 
 export const AnnotationHeader = ({
@@ -23,7 +21,6 @@ export const AnnotationHeader = ({
   isInitialImage,
   onSendForNewInitialImage,
   onDownloadImage,
-  onBack,
 }: AnnotationHeaderProps) => {
   return (
     <div className="flex flex-col gap-3 border-b border-zinc-700 bg-zinc-800 px-4 py-3 md:flex-row md:items-center md:justify-between">
@@ -38,15 +35,6 @@ export const AnnotationHeader = ({
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          onClick={onBack}
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 sm:w-auto"
-        >
-          <span className="flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back to map
-          </span>
-        </button>
         <button
           onClick={onDownloadImage}
           disabled={isRevising}

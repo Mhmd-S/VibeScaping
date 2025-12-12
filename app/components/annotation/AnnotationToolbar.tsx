@@ -1,4 +1,5 @@
 import {
+    ArrowLeft,
     ArrowRight,
     History,
     MousePointer2,
@@ -12,6 +13,7 @@ import { AnnotationTool } from "../../types/landscape";
 
 interface AnnotationToolbarProps {
   currentTool: AnnotationTool;
+  onBack: () => void;
   onToolChange: (tool: AnnotationTool) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -21,6 +23,7 @@ interface AnnotationToolbarProps {
 }
 
 export const AnnotationToolbar = ({
+    onBack,
     currentTool,
     onToolChange,
     onZoomIn,
@@ -31,6 +34,13 @@ export const AnnotationToolbar = ({
 }: AnnotationToolbarProps) => {
   return (
     <div className="flex w-16 flex-col items-center gap-1 border-r border-zinc-700 bg-zinc-800 py-4">
+      <button
+        onClick={onBack}
+        className="rounded-lg bg-blue-600 p-3 text-white transition-colors hover:bg-blue-700"
+        title="Back to dashboard"
+      >
+        <ArrowLeft className="h-5 w-5" />
+      </button>
       <button
         onClick={() => onToolChange("select")}
         className={`rounded-lg p-3 transition-colors ${

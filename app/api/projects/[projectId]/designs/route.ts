@@ -23,8 +23,9 @@ const serializeDesign = (design: any) => ({
 
 export const GET = async (
     _request: NextRequest,
-    { params }: { params: { projectId: string } },
+    context: { params: Promise<{ projectId: string }> },
 ) => {
+    const { projectId } = await context.params;
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
@@ -32,7 +33,7 @@ export const GET = async (
     }
 
     const project = await prisma.project.findFirst({
-        where: { id: params.projectId, ownerId: session.user.id },
+        where: { id: projectId, ownerId: session.user.id },
     });
 
     if (!project) {
@@ -40,7 +41,7 @@ export const GET = async (
     }
 
     const designs = await prisma.design.findMany({
-        where: { projectId: params.projectId },
+        where: { projectId },
         orderBy: { createdAt: 'desc' },
     });
 
@@ -51,8 +52,9 @@ export const GET = async (
 
 export const POST = async (
     request: NextRequest,
-    { params }: { params: { projectId: string } },
+    context: { params: Promise<{ projectId: string }> },
 ) => {
+    const { projectId } = await context.params;
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
@@ -60,7 +62,7 @@ export const POST = async (
     }
 
     const project = await prisma.project.findFirst({
-        where: { id: params.projectId, ownerId: session.user.id },
+        where: { id: projectId, ownerId: session.user.id },
     });
 
     if (!project) {

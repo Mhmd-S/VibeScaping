@@ -14,7 +14,8 @@ const getEnv = () => {
     const accessKeyId = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID;
     const secretAccessKey = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY;
     const bucket = process.env.CLOUDFLARE_R2_BUCKET;
-    const publicBaseUrl = process.env.CLOUDFLARE_R2_PUBLIC_BASE_URL;
+    const publicBaseUrl =
+        process.env.CLOUDFLARE_R2_PUBLIC_URL || process.env.CLOUDFLARE_R2_PUBLIC_BASE_URL;
 
     if (!accountId || !accessKeyId || !secretAccessKey || !bucket) {
         throw new Error('Cloudflare R2 environment variables are not fully configured');
@@ -29,6 +30,7 @@ const buildClient = () => {
     return new S3Client({
         region: 'auto',
         endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+        forcePathStyle: true,
         credentials: {
             accessKeyId,
             secretAccessKey,
@@ -67,7 +69,7 @@ export const uploadBase64Image = async ({ base64, mimeType, keyPrefix }: UploadI
 
     const baseUrl =
         publicBaseUrl ||
-        `https://${bucket}.${accountId}.r2.cloudflarestorage.com`;
+        `https://${accountId}.r2.cloudflarestorage.com/${bucket}`;
 
     return `${baseUrl}/${key}`;
 };

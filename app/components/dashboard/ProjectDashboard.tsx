@@ -36,6 +36,30 @@ const buildPlaceholderName = () => {
     return `Landscape Project ${formatted}`;
 };
 
+const publicImageBaseUrl =
+    process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL || process.env.CLOUDFLARE_R2_PUBLIC_URL;
+
+const toPublicImageUrl = (originalUrl?: string | null) => {
+    if (!originalUrl) return undefined;
+    if (!publicImageBaseUrl) return originalUrl;
+
+    try {
+        const parsed = new URL(originalUrl);
+        const segments = parsed.pathname.split('/').filter(Boolean);
+
+        if (segments.length === 0) return originalUrl;
+
+        // Keep leading "projects" prefix; otherwise drop only a bucket segment
+        const keyPath = segments[0] === 'projects' ? segments.join('/') : segments.slice(1).join('/') || segments[0];
+        const normalizedBase = publicImageBaseUrl.replace(/\/$/, '');
+
+        return `${normalizedBase}/${keyPath}`;
+    } catch (error) {
+        console.warn('Failed to build public image URL, falling back to original', error);
+        return originalUrl;
+    }
+};
+
 const ProjectDashboard = ({ initialProjects }: ProjectDashboardProps) => {
     const router = useRouter();
     const [projects, setProjects] = useState<Project[]>(initialProjects);
@@ -144,7 +168,7 @@ const ProjectDashboard = ({ initialProjects }: ProjectDashboardProps) => {
             <div className="space-y-4" id="project-list">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">My projects</h3>
+                        <h3 className="text-lg font-semibold text-zinc-900">My projects</h3>
                         <p className="text-sm text-zinc-600 dark:text-zinc-400">
                             Projects you've created are listed below.
                         </p>
@@ -176,7 +200,7 @@ const ProjectDashboard = ({ initialProjects }: ProjectDashboardProps) => {
                 ) : (
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         {projects.map((project) => {
-                            const latestDesignUrl = project.lastDesign?.generatedImageUrl;
+                            const latestDesignUrl = toPublicImageUrl(project.lastDesign?.generatedImageUrl);
                             const hasPreview = latestDesignUrl && !imageErrors[project.id];
                             const projectUpdated = formatDate(project.updatedAt);
 

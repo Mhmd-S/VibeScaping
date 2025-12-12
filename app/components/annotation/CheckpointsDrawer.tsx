@@ -1,6 +1,43 @@
 import { X } from "lucide-react";
 import { RevisionNode } from "../../types/landscape";
 
+const publicImageBaseUrl =
+  process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL || process.env.CLOUDFLARE_R2_PUBLIC_URL;
+
+const toPublicImageUrl = (originalUrl?: string | null) => {
+  if (!originalUrl) return undefined;
+  if (!publicImageBaseUrl) return originalUrl;
+
+  try {
+    const parsed = new URL(originalUrl);
+    const segments = parsed.pathname.split("/").filter(Boolean);
+    if (segments.length === 0) return originalUrl;
+
+    const keyPath =
+      segments[0] === "projects" ? segments.join("/") : segments.slice(1).join("/") || segments[0];
+    const normalizedBase = publicImageBaseUrl.replace(/\/$/, "");
+    return `${normalizedBase}/${keyPath}`;
+  } catch {
+    return originalUrl;
+  }
+};
+
+const resolveRevisionImage = (image?: string, mimeType?: string) => {
+  if (!image) return "";
+
+  const safeMime = mimeType || "image/png";
+
+  if (image.startsWith("data:")) {
+    return image;
+  }
+
+  if (image.startsWith("http://") || image.startsWith("https://")) {
+    return toPublicImageUrl(image) || image;
+  }
+
+  return `data:${safeMime};base64,${image}`;
+};
+
 interface CheckpointsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -61,7 +98,7 @@ export const CheckpointsDrawer = ({
                   >
                     <div className="aspect-video bg-zinc-900">
                       <img
-                        src={`data:${rev.mimeType};base64,${rev.image}`}
+                        src={resolveRevisionImage(rev.image, rev.mimeType)}
                         alt={rev.label || "Revision"}
                         className="h-full w-full object-cover"
                       />

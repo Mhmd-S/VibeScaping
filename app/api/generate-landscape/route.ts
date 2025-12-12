@@ -4,6 +4,29 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { authOptions } from '@/lib/auth';
 
+const normalizeImagePayload = async (value: string): Promise<string> => {
+    if (!value) return '';
+
+    // If already data URL, strip prefix and return base64 part
+    if (value.startsWith('data:')) {
+        const [, base64Part] = value.split(',', 2);
+        return base64Part || '';
+    }
+
+    // If it looks like an http(s) URL, fetch and convert to base64
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+        const response = await fetch(value);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch source image (${response.status})`);
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        return Buffer.from(arrayBuffer).toString('base64');
+    }
+
+    // Assume raw base64 string
+    return value;
+};
+
 export async function POST(request: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
@@ -37,17 +60,6 @@ export async function POST(request: NextRequest) {
             apiKey,
         });
 
-        const userReferencePart = referenceOriginalImageBase64
-            ? [
-                  {
-                      inlineData: {
-                          mimeType: referenceOriginalMimeType || 'image/png',
-                          data: referenceOriginalImageBase64,
-                      },
-                  },
-              ]
-            : [];
-
         // Build prompt based on whether this is a revision or initial generation
         let prompt: string;
 
@@ -70,6 +82,12 @@ export async function POST(request: NextRequest) {
           Maintain rotation, scale, and aspect ratio of the image.`;
         }
 
+        // Normalize incoming images so the model always receives base64 bytes
+        const normalizedUserImageBase64 = await normalizeImagePayload(imageBase64);
+        const normalizedReferenceBase64 = referenceOriginalImageBase64
+            ? await normalizeImagePayload(referenceOriginalImageBase64)
+            : null;
+
         // Try image generation model first, fallback to other models if needed
         let response;
         let modelName = 'gemini-3-pro-image-preview';
@@ -77,11 +95,20 @@ export async function POST(request: NextRequest) {
         // Construct multimodal content with reference images, user image, and prompt
         const multimodalContent = {
             parts: [
-                ...userReferencePart,
+                ...(normalizedReferenceBase64
+                    ? [
+                          {
+                              inlineData: {
+                                  mimeType: referenceOriginalMimeType || 'image/png',
+                                  data: normalizedReferenceBase64,
+                              },
+                          },
+                      ]
+                    : []),
                 {
                     inlineData: {
                         mimeType: mimeType || 'image/png',
-                        data: imageBase64,
+                        data: normalizedUserImageBase64,
                     },
                 },
                 { text: prompt },

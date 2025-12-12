@@ -15,7 +15,7 @@ CLOUDFLARE_R2_ACCESS_KEY_ID=your_access_key
 CLOUDFLARE_R2_SECRET_ACCESS_KEY=your_secret_key
 CLOUDFLARE_R2_BUCKET=your_bucket_name
 # Optional: public domain or R2 public URL (defaults to R2 bucket URL)
-CLOUDFLARE_R2_PUBLIC_BASE_URL=https://<bucket>.<account>.r2.cloudflarestorage.com
+CLOUDFLARE_R2_PUBLIC_URL=https://<bucket>.<account>.r2.cloudflarestorage.com
 ```
 
 After setting env vars, install dependencies and generate the Prisma client:
