@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowUpRight, Folder, ImageIcon, Loader2, Plus, RefreshCcw } from 'lucide-react';
+import { ImageIcon, Loader2, Plus, RefreshCcw } from 'lucide-react';
 import Image from 'next/image';
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -194,7 +194,7 @@ const ProjectDashboard = ({ initialProjects }: ProjectDashboardProps) => {
                 </div>
 
                 {!hasProjects ? (
-                    <div className="rounded-2xl border border-dashed border-zinc-300 bg-white px-4 py-10 text-center text-sm text-zinc-600 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                    <div className="rounded-2xl border border-dashed border-zinc-300 bg-white px-4 py-10 text-center text-sm text-zinc-600 shadow-sm dark:border-zinc-700 ">
                         No projects yet. Start a new project to save your work.
                     </div>
                 ) : (
@@ -227,7 +227,7 @@ const ProjectDashboard = ({ initialProjects }: ProjectDashboardProps) => {
                                                     fill
                                                     unoptimized
                                                     sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
-                                                    className="object-cover transition duration-300 group-hover:scale-105"
+                                                    className="object-cover transition duration-300 group-hover:scale-105 rounded-lg"
                                                     onError={() => setImageErrors((prev) => ({ ...prev, [project.id]: true }))}
                                                 />
                                             ) : (
@@ -237,15 +237,6 @@ const ProjectDashboard = ({ initialProjects }: ProjectDashboardProps) => {
                                                 </div>
                                             )}
                                             <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent opacity-90" />
-                                            <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-white">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="rounded-full bg-white/15 px-2 py-1 font-semibold">
-                                                        Open in editor
-                                                    </span>
-                                                    <span className="text-white/80">Updated {projectUpdated}</span>
-                                                </div>
-                                                <ArrowUpRight className="h-4 w-4 text-white" />
-                                            </div>
                                         </div>
                                     </CardHeader>
                                     <CardContent className="flex flex-1 flex-col gap-3 p-4">
@@ -263,22 +254,6 @@ const ProjectDashboard = ({ initialProjects }: ProjectDashboardProps) => {
                                             )}
                                         </div>
                                     </CardContent>
-                                    <CardFooter className="items-center justify-between border-t border-zinc-100">
-                                        <div className="flex items-center gap-2 text-xs font-medium text-zinc-500">
-                                            <Folder className="h-4 w-4" />
-                                            Updated {projectUpdated}
-                                        </div>
-                                        <Button
-                                            size="sm"
-                                            variant="secondary"
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                handleOpenProject(project.id);
-                                            }}
-                                        >
-                                            Open
-                                        </Button>
-                                    </CardFooter>
                                 </Card>
                             );
                         })}

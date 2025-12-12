@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
-import type { Library } from '@react-google-maps/api';
 import { useRouter, useSearchParams } from 'next/navigation';
 import html2canvas from 'html2canvas';
 
@@ -48,8 +47,9 @@ const MapView = () => {
     } = usePolygonDrawing();
     const geocoderRef = useRef<google.maps.Geocoder | null>(null);
 
+    type GoogleMapsLibrary = 'drawing' | 'geometry' | 'places' | 'visualization';
     const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
-    const libraries: Library[] = ['geometry', 'places'];
+    const libraries: GoogleMapsLibrary[] = ['geometry', 'places'];
 
     const { isLoaded, loadError } = useJsApiLoader({
         id: 'google-maps-script',
@@ -293,6 +293,32 @@ const MapView = () => {
                     (error as any).apiError = data.apiError;
                 }
                 throw error;
+            }
+
+            const projectId = searchParams.get('projectId');
+            if (!projectId) {
+                throw new Error('Missing project. Please start from the dashboard to save your design.');
+            }
+
+            const persistResponse = await fetch(`/api/projects/${projectId}/designs`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    generatedImageBase64: data.image,
+                    generatedMimeType: data.mimeType,
+                    originalImageBase64: base64,
+                    originalMimeType: 'image/png',
+                    revisionHistory: [],
+                    description: data.description,
+                }),
+            });
+
+            const persisted = await persistResponse.json();
+            if (!persistResponse.ok) {
+                const persistError = persisted?.details || persisted?.error || 'Failed to save design to project';
+                throw new Error(persistError);
             }
 
             const rootRevisionId = `rev-${Date.now()}`;

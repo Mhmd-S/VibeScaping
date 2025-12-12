@@ -172,7 +172,7 @@ export const AnnotationEditor = ({
     () => resolveImageSource(originalCapturedImage),
     [originalCapturedImage]
   );
-  const konvaImage = useImage(imageSrc);
+  const [konvaImage] = useImage(imageSrc, "Anonymous");
 
   const handleLabelDragEnd = useCallback((id: string, x: number, y: number) => {
     setAnnotations((prev) =>
