@@ -128,7 +128,7 @@ const DashboardPage = async () => {
                     </div>
                 </header>
 
-                <main className="mx-auto flex w-full max-w-6xl flex-1 px-4 py-8">
+                <main className="mx-auto flex w-full max-w-6xl flex-1 px-4 py-8 overflow-scroll max-h-3/4">
                     <ProjectDashboard
                         initialProjects={serializedProjects}
                         userName={session.user?.name ?? session.user?.email ?? 'You'}

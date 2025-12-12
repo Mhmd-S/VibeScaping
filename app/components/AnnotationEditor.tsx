@@ -13,6 +13,7 @@ import {
 } from "../types/landscape";
 import { useImage } from "../hooks/useImage";
 import {
+  MIN_LABEL_HEIGHT,
   DEFAULT_LABEL_WIDTH,
   DEFAULT_LABEL_HEIGHT,
   simplifyAnnotationPoints,
@@ -127,13 +128,7 @@ export const AnnotationEditor = ({
   const [selectedAnnotationIds, setSelectedAnnotationIds] = useState<string[]>(
     []
   );
-  const [editingTextArea, setEditingTextArea] = useState<{
-    id: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null>(null);
+  const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null);
   const [showFreehandInstructions, setShowFreehandInstructions] = useState(true);
   const [selectionRect, setSelectionRect] = useState<{
     x: number;
@@ -166,8 +161,6 @@ export const AnnotationEditor = ({
   const mainScrollRef = useRef<HTMLDivElement | null>(null);
   const referenceScrollRef = useRef<HTMLDivElement | null>(null);
   const isSyncingScrollRef = useRef(false);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const isClosingTextareaRef = useRef(false);
   const selectionStartRef = useRef<Point | null>(null);
 
   // Load the main image
@@ -206,68 +199,7 @@ export const AnnotationEditor = ({
   const handleTextboxDoubleClick = useCallback(
     (id: string) => {
       setSelectedAnnotationIds([id]);
-
-      requestAnimationFrame(() => {
-        const ann = annotations.find((a) => a.id === id);
-        if (!ann || !stageRef.current) return;
-
-        const anchor =
-          ann.labelOffset || getAnnotationAnchorPoint(ann) || { x: 0, y: 0 };
-        const labelSize = ann.labelSize || {
-          width: DEFAULT_LABEL_WIDTH,
-          height: DEFAULT_LABEL_HEIGHT,
-        };
-
-        const scale = imageZoom;
-
-        setEditingTextArea({
-          id: ann.id,
-          x: anchor.x * scale,
-          y: anchor.y * scale,
-          width: labelSize.width * scale,
-          height: labelSize.height * scale,
-        });
-
-        setTimeout(() => {
-          if (textareaRef.current) {
-            textareaRef.current.focus();
-            textareaRef.current.select();
-          }
-        }, 50);
-      });
-    },
-    [annotations, imageZoom]
-  );
-
-  const handleTextareaBlur = useCallback(() => {
-    isClosingTextareaRef.current = true;
-    setEditingTextArea(null);
-    // Reset the flag after a short delay
-    setTimeout(() => {
-      isClosingTextareaRef.current = false;
-    }, 100);
-  }, []);
-
-  const handleTextareaKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        // Enter without Shift closes the textbox
-        e.preventDefault();
-        isClosingTextareaRef.current = true;
-        setEditingTextArea(null);
-        // Reset the flag after a short delay
-        setTimeout(() => {
-          isClosingTextareaRef.current = false;
-        }, 100);
-      } else if (e.key === "Escape") {
-        isClosingTextareaRef.current = true;
-        setEditingTextArea(null);
-        // Reset the flag after a short delay
-        setTimeout(() => {
-          isClosingTextareaRef.current = false;
-        }, 100);
-      }
-      // Shift+Enter for new lines (default textarea behavior)
+      setEditingAnnotationId(id);
     },
     []
   );
@@ -363,14 +295,6 @@ export const AnnotationEditor = ({
 
   const handleStageMouseDown = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
-      if (isClosingTextareaRef.current) {
-        return;
-      }
-
-      if (editingTextArea) {
-        handleTextareaBlur();
-      }
-
       const stage = e.target.getStage();
       if (!stage) return;
       const pos = stage.getPointerPosition();
@@ -400,31 +324,19 @@ export const AnnotationEditor = ({
           labelOffset: { x: pos.x, y: pos.y },
           labelSize: {
             width: DEFAULT_LABEL_WIDTH,
-            height: DEFAULT_LABEL_HEIGHT,
+            height: MIN_LABEL_HEIGHT,
           },
         };
         setAnnotations((prev) => [...prev, newAnnotation]);
         setSelectedAnnotationIds([newAnnotation.id]);
-        setEditingTextArea({
-          id: newAnnotation.id,
-          x: pos.x * imageZoom,
-          y: pos.y * imageZoom,
-          width: (newAnnotation.labelSize?.width || DEFAULT_LABEL_WIDTH) * imageZoom,
-          height: (newAnnotation.labelSize?.height || DEFAULT_LABEL_HEIGHT) * imageZoom,
-        });
-        requestAnimationFrame(() => {
-          if (textareaRef.current) {
-            textareaRef.current.focus();
-            textareaRef.current.select();
-          }
-        });
+        setEditingAnnotationId(newAnnotation.id);
         return;
       }
 
       setIsAnnotationDrawing(true);
       setCurrentAnnotationPoints([{ x: pos.x, y: pos.y }]);
     },
-    [annotationColor, currentTool, editingTextArea, handleTextareaBlur, imageZoom]
+    [annotationColor, currentTool]
   );
 
   const handleStageMouseMove = useCallback(
@@ -543,7 +455,7 @@ export const AnnotationEditor = ({
 
   const handleStageClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
-      if (isAnnotationDrawing || editingTextArea) return;
+      if (isAnnotationDrawing) return;
       const target = e.target;
       const stage = target.getStage();
       const targetType = target.getType();
@@ -552,7 +464,7 @@ export const AnnotationEditor = ({
         setSelectedAnnotationIds([]);
       }
     },
-    [editingTextArea, isAnnotationDrawing]
+    [isAnnotationDrawing]
   );
 
   const updateAnnotationText = useCallback((id: string, text: string) => {
@@ -590,7 +502,7 @@ export const AnnotationEditor = ({
     const deleteSet = new Set(idsToDelete);
     setAnnotations((prev) => prev.filter((ann) => !deleteSet.has(ann.id)));
     setSelectedAnnotationIds((prev) => prev.filter((id) => !deleteSet.has(id)));
-    setEditingTextArea(null);
+    setEditingAnnotationId(null);
   }, []);
 
   useEffect(() => {
@@ -616,7 +528,7 @@ export const AnnotationEditor = ({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Cancel drawing with Escape key
-      if (e.key === "Escape" && isAnnotationDrawing && !editingTextArea) {
+      if (e.key === "Escape" && isAnnotationDrawing && !editingAnnotationId) {
         e.preventDefault();
         setIsAnnotationDrawing(false);
         setCurrentAnnotationPoints([]);
@@ -627,7 +539,7 @@ export const AnnotationEditor = ({
       if (
         (e.key === "Delete" || e.key === "Backspace") &&
         selectedAnnotationIds.length > 0 &&
-        !editingTextArea
+        !editingAnnotationId
       ) {
         e.preventDefault();
         deleteAnnotation(selectedAnnotationIds);
@@ -643,7 +555,7 @@ export const AnnotationEditor = ({
       window.removeEventListener("keydown", preventKeyZoom);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [selectedAnnotationIds, editingTextArea, deleteAnnotation, isAnnotationDrawing]);
+  }, [selectedAnnotationIds, editingAnnotationId, deleteAnnotation, isAnnotationDrawing]);
 
   useEffect(() => {
     setActiveImage(generatedImage);
@@ -1225,7 +1137,6 @@ export const AnnotationEditor = ({
                             />
                           )}
                           {annotations
-                            .filter((ann) => ann.type === "textbox")
                             .map((ann) => (
                               <TextLabel
                                 key={`label-${ann.id}`}
@@ -1234,53 +1145,18 @@ export const AnnotationEditor = ({
                                 onTransformEnd={handleLabelTransformEnd}
                                 onDoubleClick={handleTextboxDoubleClick}
                                 onClick={handleLabelClick}
+                                onTextChange={updateAnnotationText}
+                                onFinishEditing={() => setEditingAnnotationId(null)}
                                 isSelected={selectedAnnotationIds.includes(ann.id)}
+                                isEditing={editingAnnotationId === ann.id}
                               />
                             ))}
                         </Layer>
                       </Stage>
-
-                      {/* HTML Textarea overlay for editing */}
-                      {editingTextArea && (
-                        <div
-                          className="absolute z-20"
-                          style={{
-                            left: editingTextArea.x,
-                            top: editingTextArea.y,
-                            width: editingTextArea.width,
-                            height: editingTextArea.height,
-                            transform: `rotate(${imageRotation}deg)`,
-                            transformOrigin: "top left",
-                            pointerEvents: "auto",
-                          }}
-                          onMouseDown={(e) => e.stopPropagation()}
-                          onMouseUp={(e) => e.stopPropagation()}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <textarea
-                            ref={textareaRef}
-                            value={
-                              annotations.find(
-                                (a) => a.id === editingTextArea.id
-                              )?.text || ""
-                            }
-                            onChange={(e) =>
-                              updateAnnotationText(
-                                editingTextArea.id,
-                                e.target.value
-                              )
-                            }
-                            onBlur={handleTextareaBlur}
-                            onKeyDown={handleTextareaKeyDown}
-                            className="w-full h-full rounded-md border-2 border-blue-500 bg-white px-3 py-2 text-sm text-gray-900 outline-none resize-none shadow-lg"
-                            placeholder="Type annotation (Enter to save, Shift+Enter for new line)"
-                          />
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
+                  </>
+                )}
               </div>
+            </div>
 
               {showOriginalReference && (
                 <div className="rounded-lg border border-zinc-800 bg-zinc-900">
