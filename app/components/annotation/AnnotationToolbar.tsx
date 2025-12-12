@@ -43,7 +43,7 @@ export const AnnotationToolbar = ({
       </button>
       <button
         onClick={() => onToolChange("select")}
-        className={`rounded-lg p-3 transition-colors ${
+        className={`rounded-lg p-3 transition-colors mt-2 ${
           currentTool === "select"
             ? "bg-blue-600 text-white"
             : "text-zinc-400 hover:bg-zinc-700 hover:text-white"

@@ -28,6 +28,10 @@ import { AnnotationHeader } from "./annotation/AnnotationHeader";
 import { CheckpointsDrawer } from "./annotation/CheckpointsDrawer";
 import { AnnotationList } from "./annotation/AnnotationList";
 
+const MIN_CANVAS_WIDTH = 2000;
+const MIN_CANVAS_HEIGHT = 1400;
+const CANVAS_PADDING = 300;
+
 const publicImageBaseUrl =
   process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL || process.env.CLOUDFLARE_R2_PUBLIC_URL;
 
@@ -679,6 +683,13 @@ export const AnnotationEditor = ({
     return generatedSize.height / referenceSize.height;
   }, [generatedSize, referenceSize, showOriginalReference]);
 
+  const stageLayout = useMemo(() => {
+    if (!generatedSize) return null;
+    const width = Math.max(generatedSize.width + CANVAS_PADDING * 2, MIN_CANVAS_WIDTH);
+    const height = Math.max(generatedSize.height + CANVAS_PADDING * 2, MIN_CANVAS_HEIGHT);
+    return { width, height, offset: CANVAS_PADDING };
+  }, [generatedSize]);
+
   const sendForRevision = useCallback(async () => {
     if (!activeImage || annotations.length === 0 || !stageRef.current) return;
 
@@ -1123,8 +1134,8 @@ export const AnnotationEditor = ({
                     <>
                       <Stage
                         ref={stageRef}
-                        width={generatedSize.width}
-                        height={generatedSize.height}
+                        width={stageLayout?.width || generatedSize.width}
+                        height={stageLayout?.height || generatedSize.height}
                         onMouseDown={handleStageMouseDown}
                         onClick={handleStageClick}
                         onMouseMove={handleStageMouseMove}
@@ -1136,7 +1147,19 @@ export const AnnotationEditor = ({
                         }`}
                       >
                         <Layer ref={layerRef}>
-                          <KonvaImage image={konvaImage} />
+                          <Rect
+                            x={0}
+                            y={0}
+                            width={stageLayout?.width || generatedSize.width}
+                            height={stageLayout?.height || generatedSize.height}
+                            fill="#ffffff"
+                            listening={false}
+                          />
+                          <KonvaImage
+                            image={konvaImage}
+                            x={stageLayout?.offset || 0}
+                            y={stageLayout?.offset || 0}
+                          />
                           {annotations
                             .filter((ann) => ann.type !== "textbox")
                             .map((ann) =>
