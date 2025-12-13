@@ -20,16 +20,16 @@ interface AnnotationToolbarProps {
   onRotateLeft: () => void;
   onRotateRight: () => void;
   onOpenCheckpoints: () => void;
+  spawnTextbox: () => void;
 }
 
 export const AnnotationToolbar = ({
     onBack,
     currentTool,
     onToolChange,
-    onZoomIn,
+    spawnTextbox,
     onZoomOut,
-    onRotateLeft,
-    onRotateRight,
+    onZoomIn,
     onOpenCheckpoints,
 }: AnnotationToolbarProps) => {
   return (
@@ -86,7 +86,7 @@ export const AnnotationToolbar = ({
         <Pencil className="h-5 w-5" />
       </button>
       <button
-        onClick={() => onToolChange("textbox")}
+        onClick={spawnTextbox}
         className={`rounded-lg p-3 transition-colors ${
           currentTool === "textbox"
             ? "bg-blue-600 text-white"
@@ -113,21 +113,6 @@ export const AnnotationToolbar = ({
       >
         <ZoomOut className="h-5 w-5" />
       </button>
-      {/* <button
-        onClick={onRotateLeft}
-        className="rounded-lg p-3 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white"
-        title="Rotate Left"
-      >
-        <RotateCcw className="h-5 w-5" />
-      </button>
-      <button
-        onClick={onRotateRight}
-        className="rounded-lg p-3 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white"
-        title="Rotate Right"
-      >
-        <RotateCw className="h-5 w-5" />
-      </button> */}
-
       <div className="my-2 h-px w-10 bg-zinc-600" />
 
       <button

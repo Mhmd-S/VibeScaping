@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 
 /**
  * Hook to load an image from a source URL and return HTMLImageElement
+ * @param src - Image source URL
+ * @param crossOrigin - Cross-origin setting. Set to null/undefined to disable CORS, or "Anonymous"/"use-credentials" to enable it
  */
 export const useImage = (
   src: string,
-  crossOrigin: string = "Anonymous"
+  crossOrigin?: string | null
 ): [HTMLImageElement | null, "loading" | "loaded" | "failed"] => {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [status, setStatus] = useState<"loading" | "loaded" | "failed">(
@@ -20,7 +22,10 @@ export const useImage = (
     }
 
     const img = new window.Image();
-    img.crossOrigin = crossOrigin;
+    // Only set crossOrigin if explicitly provided (not null/undefined)
+    if (crossOrigin !== null && crossOrigin !== undefined) {
+      img.crossOrigin = crossOrigin;
+    }
 
     const handleLoad = () => {
       setImage(img);
