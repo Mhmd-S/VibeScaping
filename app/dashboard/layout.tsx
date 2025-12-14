@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { CreditCard, HelpCircle, Map, Plus } from 'lucide-react';
+import { CreditCard, HelpCircle, Map, Plus, Coins } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 
@@ -64,7 +64,7 @@ const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
                 </nav>
             </aside>
 
-            <div className="flex flex-1 flex-col">
+            <div className="flex flex-1 flex-col h-screen max-h-screen">
                 <header className="border-b border-border bg-card/90 backdrop-blur">
                     <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4">
                         <div>
@@ -75,6 +75,7 @@ const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-sm font-medium text-card-foreground shadow-sm">
+                                <Coins className="h-4 w-4" />
                                 Credits
                                 <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-foreground">
                                     50
@@ -82,10 +83,10 @@ const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
                             </div>
                             <Button asChild size="sm">
                                 <Link href="/upgrade">
-                                    Upgrade
+                                    <CreditCard className="h-4 w-4" />
+                                    Get More Credits
                                 </Link>
                             </Button>
-                            <ProfileMenu name={session.user?.name ?? 'You'} email={session.user?.email ?? ''} />
                         </div>
                     </div>
                 </header>

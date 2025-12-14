@@ -57,24 +57,10 @@ const ProjectDashboard = ({ initialProjects }: ProjectDashboardProps) => {
         setError(null);
 
         try {
-            const response = await fetch('/api/projects', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ name: buildPlaceholderName(), description: '' }),
-            });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result?.error || 'Could not create project');
-            }
-
-            setProjects((current) => [result.project, ...current]);
-            router.push(`/map?projectId=${result.project.id}`);
+            // Navigate to map page - project will be created after successful image generation
+            router.push('/map');
         } catch (creationError) {
-            setError(creationError instanceof Error ? creationError.message : 'Could not create project');
+            setError(creationError instanceof Error ? creationError.message : 'Could not navigate to map');
         } finally {
             setIsCreating(false);
         }

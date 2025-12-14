@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import { useRouter, useSearchParams } from "next/navigation";
-import html2canvas from 'html2canvas-pro';
+import html2canvas from "html2canvas-pro";
 import { X, Loader2, ArrowLeft, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
@@ -14,6 +14,7 @@ import { Location } from "@/app/types/landscape";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { buildPlaceholderName } from "@/app/components/dashboard/projectUtils";
 
 const mapContainerStyle = {
   width: "100%",
@@ -160,37 +161,65 @@ const MapView = () => {
       let canvas: HTMLCanvasElement | null = null;
       try {
         // Get computed RGB values for CSS custom properties from the original document
-        const tempEl = document.createElement('div');
-        tempEl.style.position = 'absolute';
-        tempEl.style.visibility = 'hidden';
+        const tempEl = document.createElement("div");
+        tempEl.style.position = "absolute";
+        tempEl.style.visibility = "hidden";
         document.body.appendChild(tempEl);
-        
+
         const cssVars = [
-          'background', 'foreground', 'card', 'card-foreground',
-          'popover', 'popover-foreground', 'primary', 'primary-foreground',
-          'secondary', 'secondary-foreground', 'muted', 'muted-foreground',
-          'accent', 'accent-foreground', 'destructive', 'border', 'input', 'ring',
-          'chart-1', 'chart-2', 'chart-3', 'chart-4', 'chart-5',
-          'sidebar', 'sidebar-foreground', 'sidebar-primary', 'sidebar-primary-foreground',
-          'sidebar-accent', 'sidebar-accent-foreground', 'sidebar-border', 'sidebar-ring'
+          "background",
+          "foreground",
+          "card",
+          "card-foreground",
+          "popover",
+          "popover-foreground",
+          "primary",
+          "primary-foreground",
+          "secondary",
+          "secondary-foreground",
+          "muted",
+          "muted-foreground",
+          "accent",
+          "accent-foreground",
+          "destructive",
+          "border",
+          "input",
+          "ring",
+          "chart-1",
+          "chart-2",
+          "chart-3",
+          "chart-4",
+          "chart-5",
+          "sidebar",
+          "sidebar-foreground",
+          "sidebar-primary",
+          "sidebar-primary-foreground",
+          "sidebar-accent",
+          "sidebar-accent-foreground",
+          "sidebar-border",
+          "sidebar-ring",
         ];
-        
+
         const computedVars: Record<string, string> = {};
         cssVars.forEach((varName) => {
           try {
             const computed = window.getComputedStyle(tempEl);
             tempEl.style.backgroundColor = `var(--${varName})`;
             const rgbValue = computed.backgroundColor;
-            if (rgbValue && rgbValue !== 'rgba(0, 0, 0, 0)' && rgbValue !== 'transparent') {
+            if (
+              rgbValue &&
+              rgbValue !== "rgba(0, 0, 0, 0)" &&
+              rgbValue !== "transparent"
+            ) {
               computedVars[varName] = rgbValue;
             }
           } catch (e) {
             // Ignore errors
           }
         });
-        
+
         document.body.removeChild(tempEl);
-        
+
         canvas = await html2canvas(mapElement, {
           useCORS: true,
           allowTaint: true,
@@ -199,11 +228,11 @@ const MapView = () => {
           backgroundColor: null,
           onclone: (clonedDoc) => {
             // Inject a style override to replace CSS custom properties with computed RGB values
-            const overrideStyle = clonedDoc.createElement('style');
+            const overrideStyle = clonedDoc.createElement("style");
             const varOverrides = Object.entries(computedVars)
               .map(([name, value]) => `--${name}: ${value} !important;`)
-              .join('\n');
-            
+              .join("\n");
+
             overrideStyle.textContent = `
               :root, .dark {
                 ${varOverrides}
@@ -374,11 +403,27 @@ const MapView = () => {
         throw error;
       }
 
-      const projectId = searchParams.get("projectId");
+      // Create project only after successful image generation
+      let projectId = searchParams.get("projectId");
+      
       if (!projectId) {
-        throw new Error(
-          "Missing project. Please start from the dashboard to save your design."
-        );
+        const createProjectResponse = await fetch("/api/projects", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name: buildPlaceholderName(), description: "" }),
+        });
+
+        const createProjectResult = await createProjectResponse.json();
+
+        if (!createProjectResponse.ok) {
+          throw new Error(
+            createProjectResult?.error || "Could not create project"
+          );
+        }
+
+        projectId = createProjectResult.project.id;
       }
 
       const persistResponse = await fetch(
@@ -736,7 +781,7 @@ const MapView = () => {
           onClick={() => router.push("/dashboard")}
           className="bg-card/95 backdrop-blur"
         >
-            <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="h-4 w-4" />
           Go to Dashboard
         </Button>
       </div>
