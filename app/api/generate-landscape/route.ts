@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
         
         Use the attached reference landscape style images to guide the aesthetic, materials, and layout quality. Do not include any text, annotations in the output image or new features.
         
-          Maintain rotation, scale, and aspect ratio of the image.`;
+          Maintain rotation, scale, and aspect ratio of the image. Use a white background.`;
         }
 
         // Normalize incoming images so the model always receives base64 bytes

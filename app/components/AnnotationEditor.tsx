@@ -682,12 +682,25 @@ export const AnnotationEditor = ({
   }, [generatedSize]);
 
   const spawnTextbox = () => {
-    if (!generatedSize) return;
+    if (!generatedSize || !mainScrollRef.current) return;
 
-    const width = stageLayout?.width ?? generatedSize.width;
-    const height = stageLayout?.height ?? generatedSize.height;
-    const centerX = width / 2;
-    const centerY = height / 2;
+    // Get the scroll container's viewport center
+    const scrollContainer = mainScrollRef.current;
+    const rect = scrollContainer.getBoundingClientRect();
+    
+    // Calculate the center of the visible viewport
+    const viewportCenterX = rect.width / 2;
+    const viewportCenterY = rect.height / 2;
+    
+    // Account for scroll position and padding (p-3 = 12px)
+    const padding = 12;
+    const scrollX = scrollContainer.scrollLeft;
+    const scrollY = scrollContainer.scrollTop;
+    
+    // Convert viewport coordinates to stage coordinates
+    // Account for zoom and padding
+    const centerX = (scrollX + viewportCenterX - padding) / imageZoom;
+    const centerY = (scrollY + viewportCenterY - padding) / imageZoom;
 
     const newId = `ann-${Date.now()}`;
     const newAnnotation: Annotation = {
@@ -709,8 +722,8 @@ export const AnnotationEditor = ({
       next.set(newId, newAnnotation);
       return next;
     });
+
     setSelectedAnnotationIds([newId]);
-    setEditingAnnotationId(newId);
     setCurrentTool("select");
   };
 
@@ -1303,28 +1316,45 @@ export const AnnotationEditor = ({
                           transform: `scale(${imageZoom * referenceScale})`,
                           transformOrigin: "top left",
                           width: referenceSize?.width
-                            ? `${referenceSize.width}px`
+                            ? `${referenceSize.width + CANVAS_PADDING * 2}px`
                             : "auto",
                           height: referenceSize?.height
-                            ? `${referenceSize.height}px`
+                            ? `${referenceSize.height + CANVAS_PADDING * 2}px`
                             : "auto",
                         }}
                       >
-                        <img
-                          src={referenceImageSrc}
-                          onLoad={handleReferenceLoad}
-                          alt="Original reference capture"
-                          className="block rounded-lg shadow"
+                        <div
                           style={{
-                            width: referenceSize?.width
-                              ? `${referenceSize.width}px`
-                              : "auto",
-                            height: referenceSize?.height
-                              ? `${referenceSize.height}px`
-                              : "auto",
-                            objectFit: "contain",
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            height: "100%",
+                            backgroundColor: "#ffffff",
                           }}
                         />
+                        <div
+                          style={{
+                            padding: `${CANVAS_PADDING}px`,
+                            position: "relative",
+                          }}
+                        >
+                          <img
+                            src={referenceImageSrc}
+                            onLoad={handleReferenceLoad}
+                            alt="Original reference capture"
+                            className="block rounded-lg shadow"
+                            style={{
+                              width: referenceSize?.width
+                                ? `${referenceSize.width}px`
+                                : "auto",
+                              height: referenceSize?.height
+                                ? `${referenceSize.height}px`
+                                : "auto",
+                              objectFit: "contain",
+                            }}
+                          />
+                        </div>
                       </div>
                     ) : (
                       <p className="text-sm text-zinc-500 text-center">
