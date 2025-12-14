@@ -10,6 +10,8 @@ import {
     ZoomOut,
 } from "lucide-react";
 import { AnnotationTool } from "../../types/landscape";
+import { Button } from "../ui/button";
+import { cn } from "@/lib/utils";
 
 interface AnnotationToolbarProps {
   currentTool: AnnotationTool;
@@ -33,95 +35,85 @@ export const AnnotationToolbar = ({
     onOpenCheckpoints,
 }: AnnotationToolbarProps) => {
   return (
-    <div className="flex w-16 flex-col items-center gap-1 border-r border-zinc-700 bg-zinc-800 py-4">
-      <button
+    <div className="flex w-16 flex-col items-center gap-1 border-r border-border bg-card py-4">
+      <Button
         onClick={onBack}
-        className="rounded-lg bg-blue-600 p-3 text-white transition-colors hover:bg-blue-700"
+        variant="default"
+        size="icon"
         title="Back to dashboard"
       >
         <ArrowLeft className="h-5 w-5" />
-      </button>
-      <button
+      </Button>
+      <Button
         onClick={() => onToolChange("select")}
-        className={`rounded-lg p-3 transition-colors mt-2 ${
-          currentTool === "select"
-            ? "bg-blue-600 text-white"
-            : "text-zinc-400 hover:bg-zinc-700 hover:text-white"
-        }`}
+        variant={currentTool === "select" ? "default" : "ghost"}
+        size="icon"
+        className="mt-2"
         title="Select"
       >
         <MousePointer2 className="h-5 w-5" />
-      </button>
-      <button
+      </Button>
+      <Button
         onClick={() => onToolChange("line")}
-        className={`rounded-lg p-3 transition-colors ${
-          currentTool === "line"
-            ? "bg-blue-600 text-white"
-            : "text-zinc-400 hover:bg-zinc-700 hover:text-white"
-        }`}
+        variant={currentTool === "line" ? "default" : "ghost"}
+        size="icon"
         title="Line"
       >
         <Minus className="h-5 w-5" />
-      </button>
-      <button
+      </Button>
+      <Button
         onClick={() => onToolChange("arrow")}
-        className={`rounded-lg p-3 transition-colors ${
-          currentTool === "arrow"
-            ? "bg-blue-600 text-white"
-            : "text-zinc-400 hover:bg-zinc-700 hover:text-white"
-        }`}
+        variant={currentTool === "arrow" ? "default" : "ghost"}
+        size="icon"
         title="Arrow"
       >
         <ArrowRight className="h-5 w-5" />
-      </button>
-      <button
+      </Button>
+      <Button
         onClick={() => onToolChange("freehand")}
-        className={`rounded-lg p-3 transition-colors ${
-          currentTool === "freehand"
-            ? "bg-blue-600 text-white"
-            : "text-zinc-400 hover:bg-zinc-700 hover:text-white"
-        }`}
+        variant={currentTool === "freehand" ? "default" : "ghost"}
+        size="icon"
         title="Freehand Drawing"
       >
         <Pencil className="h-5 w-5" />
-      </button>
-      <button
+      </Button>
+      <Button
         onClick={spawnTextbox}
-        className={`rounded-lg p-3 transition-colors ${
-          currentTool === "textbox"
-            ? "bg-blue-600 text-white"
-            : "text-zinc-400 hover:bg-zinc-700 hover:text-white"
-        }`}
+        variant={currentTool === "textbox" ? "default" : "ghost"}
+        size="icon"
         title="Textbox"
       >
         <Type className="h-5 w-5" />
-      </button>
+      </Button>
 
-      <div className="my-2 h-px w-10 bg-zinc-600" />
+      <div className="my-2 h-px w-10 bg-border" />
 
-      <button
+      <Button
         onClick={onZoomIn}
-        className="rounded-lg p-3 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white"
+        variant="ghost"
+        size="icon"
         title="Zoom In (Ctrl+Scroll)"
       >
         <ZoomIn className="h-5 w-5" />
-      </button>
-      <button
+      </Button>
+      <Button
         onClick={onZoomOut}
-        className="rounded-lg p-3 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white"
+        variant="ghost"
+        size="icon"
         title="Zoom Out (Ctrl+Scroll)"
       >
         <ZoomOut className="h-5 w-5" />
-      </button>
-      <div className="my-2 h-px w-10 bg-zinc-600" />
+      </Button>
+      <div className="my-2 h-px w-10 bg-border" />
 
-      <button
+      <Button
         onClick={onOpenCheckpoints}
-        className="rounded-lg p-3 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white"
+        variant="ghost"
+        size="icon"
         title="Checkpoints"
       >
         <History className="h-5 w-5" />
-      </button>
+      </Button>
     </div>
   );
 };

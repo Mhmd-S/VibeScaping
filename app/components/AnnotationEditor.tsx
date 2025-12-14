@@ -1066,7 +1066,7 @@ export const AnnotationEditor = ({
       {originalCapturedImage && (
         <button
           onClick={() => setShowOriginalReference((prev) => !prev)}
-          className="fixed top-20 right-4 z-60 rounded-lg bg-zinc-800 p-2 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-white border border-zinc-700 shadow-lg *:text-sm  cursor-pointer"
+          className="fixed top-20 right-4 z-60 rounded-lg bg-card p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground border border-border shadow-lg *:text-sm cursor-pointer"
           title={showOriginalReference ? "Hide Original" : "Show Original"}
         >
           {showOriginalReference ? (
@@ -1083,7 +1083,7 @@ export const AnnotationEditor = ({
         </button>
       )}
 
-      <div className="fixed inset-x-0 bottom-0 top-0 z-50 flex bg-zinc-900">
+      <div className="fixed inset-x-0 bottom-0 top-0 z-50 flex bg-background">
         <AnnotationToolbar
           onBack={onCancel}
           currentTool={currentTool}
@@ -1109,7 +1109,7 @@ export const AnnotationEditor = ({
           />
 
           <div
-            className={`flex-1 overflow-auto bg-zinc-950 p-4 ${
+            className={`flex-1 overflow-auto bg-background p-4 ${
               !showOriginalReference ? "flex items-start justify-center" : ""
             }`}
           >
@@ -1121,7 +1121,7 @@ export const AnnotationEditor = ({
               }`}
             >
               <div
-                className="overflow-auto rounded-lg border border-zinc-800 bg-zinc-900 p-3 relative"
+                className="overflow-auto rounded-lg border border-border bg-card p-3 relative"
                 onWheel={handleWheelZoom}
                 onScroll={() => syncScroll("main")}
                 ref={mainScrollRef}
@@ -1129,10 +1129,10 @@ export const AnnotationEditor = ({
                 {currentTool === "freehand" &&
                   !isAnnotationDrawing &&
                   showFreehandInstructions && (
-                    <div className="fixed top-20 left-23 z-10 rounded-lg bg-blue-900/90 border border-blue-700 px-4 py-3 text-sm text-blue-200 shadow-lg backdrop-blur-sm max-w-md">
+                    <div className="fixed top-20 left-23 z-10 rounded-lg bg-primary/90 border border-primary px-4 py-3 text-sm text-primary-foreground shadow-lg backdrop-blur-sm max-w-md">
                       <button
                         onClick={() => setShowFreehandInstructions(false)}
-                        className="absolute top-2 right-2 text-blue-300 hover:text-blue-100 transition-colors"
+                        className="absolute top-2 right-2 text-primary-foreground/80 hover:text-primary-foreground transition-colors"
                         aria-label="Close instructions"
                       >
                         <X className="h-4 w-4" />
@@ -1140,7 +1140,7 @@ export const AnnotationEditor = ({
                       <p className="font-medium pr-6">
                         Click to start drawing, then move your mouse to draw.
                       </p>
-                      <p className="text-xs text-blue-300 mt-1">
+                      <p className="text-xs text-primary-foreground/80 mt-1">
                         Release to finish
                       </p>
                     </div>
@@ -1148,10 +1148,10 @@ export const AnnotationEditor = ({
                 {currentTool === "freehand" &&
                   isAnnotationDrawing &&
                   showFreehandInstructions && (
-                    <div className="fixed top-22 left-20 z-10 rounded-lg bg-green-900/90 border border-green-700 px-4 py-3 text-sm text-green-200 shadow-lg backdrop-blur-sm max-w-sm">
+                    <div className="fixed top-22 left-20 z-10 rounded-lg bg-primary/90 border border-primary px-4 py-3 text-sm text-primary-foreground shadow-lg backdrop-blur-sm max-w-sm">
                       <button
                         onClick={() => setShowFreehandInstructions(false)}
-                        className="absolute top-2 right-2 text-green-300 hover:text-green-100 transition-colors"
+                        className="absolute top-2 right-2 text-primary-foreground/80 hover:text-primary-foreground transition-colors"
                         aria-label="Close instructions"
                       >
                         <X className="h-4 w-4" />
@@ -1159,7 +1159,7 @@ export const AnnotationEditor = ({
                       <p className="font-medium pr-6">
                         Drawing... Move mouse to continue
                       </p>
-                      <p className="text-xs text-green-300 mt-1">
+                      <p className="text-xs text-primary-foreground/80 mt-1">
                         Release to finish • Press ESC to cancel
                       </p>
                     </div>
@@ -1302,9 +1302,9 @@ export const AnnotationEditor = ({
               </div>
 
               {showOriginalReference && (
-                <div className="rounded-lg border border-zinc-800 bg-zinc-900">
+                <div className="rounded-lg border border-border bg-card">
                   <div
-                    className="mt-3 rounded border border-dashed border-zinc-700 bg-zinc-950 p-2 min-h-[200px] overflow-auto"
+                    className="mt-3 rounded border border-dashed border-border bg-background p-2 min-h-[200px] overflow-auto"
                     onWheel={handleReferenceWheelZoom}
                     onScroll={() => syncScroll("ref")}
                     ref={referenceScrollRef}
@@ -1357,7 +1357,7 @@ export const AnnotationEditor = ({
                         </div>
                       </div>
                     ) : (
-                      <p className="text-sm text-zinc-500 text-center">
+                      <p className="text-sm text-muted-foreground text-center">
                         Original map capture not found.
                       </p>
                     )}

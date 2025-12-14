@@ -2,8 +2,11 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { X } from 'lucide-react';
 
 import { AnnotationEditor } from '../components/AnnotationEditor';
+import { Button } from '../components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { GeneratedImage, RevisionNode } from '../types/landscape';
 
 type RemoteDesign = {
@@ -301,74 +304,67 @@ const EditorPage = () => {
 
     if (loadError) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black">
-                <div className="rounded-lg bg-white p-8 shadow-lg dark:bg-zinc-900">
-                    <h2 className="mb-3 text-xl font-semibold text-black dark:text-zinc-50">
+            <div className="flex min-h-screen items-center justify-center bg-background">
+                <div className="rounded-lg bg-card p-8 shadow-lg">
+                    <h2 className="mb-3 text-xl font-semibold text-card-foreground">
                         Nothing to Annotate
                     </h2>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+                    <p className="text-sm text-muted-foreground mb-4">
                         {loadError}
                     </p>
                     <div className="flex gap-3">
-                        <button
-                            onClick={() => router.push('/dashboard')}
-                            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                        >
+                        <Button onClick={() => router.push('/dashboard')}>
                             Go to dashboard
-                        </button>
-                        <button
-                            onClick={handleRetryLoad}
-                            className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
-                        >
+                        </Button>
+                        <Button variant="outline" onClick={handleRetryLoad}>
                             Try again
-                </button>
-            </div>
-            </div>
+                        </Button>
+                    </div>
+                </div>
             </div>
         );
     }
 
     if (isLoadingDesign || !generatedImage) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black">
-                <div className="rounded-lg bg-white p-8 shadow-lg dark:bg-zinc-900">
-                    <div className="text-sm text-zinc-600 dark:text-zinc-400">
+            <div className="flex min-h-screen items-center justify-center bg-background">
+                <div className="rounded-lg bg-card p-8 shadow-lg">
+                    <div className="text-sm text-muted-foreground">
                         {isLoadingDesign ? 'Loading design...' : 'No design available yet.'}
                     </div>
-            </div>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="relative min-h-screen bg-zinc-900">
-            <div className="flex flex-col gap-2 border-b border-white/10 bg-black/40 px-4 py-3 backdrop-blur">
+        <div className="relative min-h-screen bg-background">
+            <div className="flex flex-col gap-2 border-b border-border bg-card/40 px-4 py-3 backdrop-blur">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-col">
-                        <p className="text-xs uppercase tracking-wide text-green-200">Persistence</p>
-                        <p className="text-sm text-white">
+                        <p className="text-xs uppercase tracking-wide text-primary">Persistence</p>
+                        <p className="text-sm text-card-foreground">
                             Saving annotations for project {projectId || '(select a project from dashboard)'}.
                         </p>
                     </div>
-                    <button
+                    <Button
                         type="button"
                         onClick={handleSaveToProject}
                         disabled={isSavingToProject || !projectId}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         {isSavingToProject ? 'Saving...' : 'Save to project'}
-                    </button>
+                    </Button>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-sm">
                     {saveErrorMessage && (
-                        <span className="text-red-300">
-                            {saveErrorMessage}
-                        </span>
+                        <Alert variant="destructive" className="py-2">
+                            <AlertDescription>{saveErrorMessage}</AlertDescription>
+                        </Alert>
                     )}
                     {saveSuccessMessage && (
-                        <span className="text-green-300">
-                            {saveSuccessMessage}
-                        </span>
+                        <Alert className="py-2">
+                            <AlertDescription>{saveSuccessMessage}</AlertDescription>
+                        </Alert>
                     )}
                 </div>
             </div>
@@ -381,26 +377,24 @@ const EditorPage = () => {
             />
 
             {errorMessage && (
-                <div className="fixed top-20 right-4 max-w-md rounded-lg bg-red-100 p-4 shadow-lg dark:bg-red-900">
+                <Alert variant="destructive" className="fixed top-20 right-4 max-w-md shadow-lg">
                     <div className="flex items-start gap-3">
                         <div className="flex-1">
-                            <p className="text-sm font-medium text-red-800 dark:text-red-200">
-                                Revision Error
-                            </p>
-                            <div className="mt-1 text-xs text-red-600 dark:text-red-300 whitespace-pre-line">
+                            <AlertTitle>Revision Error</AlertTitle>
+                            <AlertDescription className="mt-1 whitespace-pre-line">
                                 {errorMessage}
-                            </div>
+                            </AlertDescription>
                         </div>
-                        <button
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
                             onClick={() => setErrorMessage(null)}
-                            className="text-red-500 hover:text-red-700 dark:text-red-300 dark:hover:text-red-100"
+                            className="text-destructive hover:text-destructive"
                         >
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
+                            <X className="h-4 w-4" />
+                        </Button>
                     </div>
-            </div>
+                </Alert>
             )}
         </div>
     );

@@ -4,6 +4,7 @@ import {
     RefreshCcw,
     Send,
 } from "lucide-react";
+import { Button } from "../ui/button";
 
 interface AnnotationHeaderProps {
   annotationCount: number;
@@ -23,64 +24,67 @@ export const AnnotationHeader = ({
   onDownloadImage,
 }: AnnotationHeaderProps) => {
   return (
-    <div className="flex flex-col gap-3 border-b border-zinc-700 bg-zinc-800 px-4 py-3 md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col gap-3 border-b border-border bg-card px-4 py-3 md:flex-row md:items-center md:justify-between">
       <div className="flex items-center gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-white">
+          <h2 className="text-lg font-semibold text-card-foreground">
             Creative Mode
           </h2>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-muted-foreground">
             Draw shapes and add annotations, then send for AI revision.
           </p>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <button
+        <Button
           onClick={onDownloadImage}
           disabled={isRevising}
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          variant="outline"
+          size="sm"
+          className="w-full sm:w-auto"
         >
-          <span className="flex items-center gap-2">
-            <Download className="h-4 w-4" />
-            Download image
-          </span>
-        </button>
+          <Download className="h-4 w-4" />
+          Download image
+        </Button>
         {isInitialImage && (
-          <button
+          <Button
             onClick={onSendForNewInitialImage}
             disabled={annotationCount > 1 || isRevising}
-            className="w-full rounded-lg border border-amber-400/50 bg-amber-500/10 px-4 py-1.5 text-sm font-medium text-amber-100 transition-colors hover:border-amber-300 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            variant="outline"
+            size="sm"
+            className="w-full sm:w-auto"
           >
             {isRevising ? (
-              <span className="flex items-center gap-2">
+              <>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Revising...
-              </span>
+              </>
             ) : (
-              <span className="flex items-center gap-2">
+              <>
                 <RefreshCcw className="h-4 w-4" />
                 Regenerate initial image
-              </span>
+              </>
             )}
-          </button>
+          </Button>
         )}
-        <button
+        <Button
           onClick={onSendForRevision}
           disabled={annotationCount === 0 || isRevising}
-          className="w-full rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          size="sm"
+          className="w-full sm:w-auto"
         >
           {isRevising ? (
-            <span className="flex items-center gap-2">
+            <>
               <Loader2 className="h-4 w-4 animate-spin" />
               Revising...
-            </span>
+            </>
           ) : (
-            <span className="flex items-center gap-2">
+            <>
               <Send className="h-4 w-4" />
               Send for Revision
-            </span>
+            </>
           )}
-        </button>
+        </Button>
       </div>
     </div>
   );

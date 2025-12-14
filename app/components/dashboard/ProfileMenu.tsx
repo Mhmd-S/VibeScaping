@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import Link from 'next/link';
 import { CreditCard, HelpCircle, LogOut, UserRound } from 'lucide-react';
+import { Button } from '../ui/button';
 
 interface ProfileMenuProps {
     name: string;
@@ -38,58 +39,61 @@ const ProfileMenu = ({ name, email }: ProfileMenuProps) => {
             onMouseEnter={() => setIsOpen(true)}
             onMouseLeave={closeMenu}
         >
-            <button
+            <Button
                 type="button"
                 onClick={toggleMenu}
-                className="flex h-10 z-60 w-10 items-center justify-center rounded-full bg-zinc-100 text-sm font-semibold text-zinc-800 ring-1 ring-zinc-200 transition hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                variant="secondary"
+                size="icon"
+                className="h-10 w-10 rounded-full"
             >
                 {initial}
-            </button>
+            </Button>
 
             {isOpen && (
-                <div className="absolute right-0 top-12 z-60 w-64 rounded-2xl border border-zinc-200 bg-white p-3 shadow-lg">
-                    <div className="space-y-1 rounded-xl bg-green-50 p-3">
-                        <p className="text-sm font-semibold text-zinc-900">{name}</p>
-                        {email ? <p className="text-xs text-zinc-600">{email}</p> : null}
+                <div className="absolute right-0 top-12 z-60 w-64 rounded-2xl border border-border bg-card p-3 shadow-lg">
+                    <div className="space-y-1 rounded-xl bg-accent p-3">
+                        <p className="text-sm font-semibold text-card-foreground">{name}</p>
+                        {email ? <p className="text-xs text-muted-foreground">{email}</p> : null}
                     </div>
 
                     <div className="mt-3 space-y-1">
                         <Link
                             href="/account"
-                            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-zinc-800 transition hover:bg-green-50 hover:text-green-700"
+                            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-card-foreground transition hover:bg-accent hover:text-accent-foreground"
                             onClick={closeMenu}
                         >
-                            <UserRound className="h-4 w-4 text-green-700" />
+                            <UserRound className="h-4 w-4 text-primary" />
                             Account
                         </Link>
                         <Link
                             href="/billing"
-                            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-zinc-800 transition hover:bg-green-50 hover:text-green-700"
+                            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-card-foreground transition hover:bg-accent hover:text-accent-foreground"
                             onClick={closeMenu}
                         >
-                            <CreditCard className="h-4 w-4 text-green-700" />
+                            <CreditCard className="h-4 w-4 text-primary" />
                             Billing
                         </Link>
                         <Link
                             href="/help"
-                            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-zinc-800 transition hover:bg-green-50 hover:text-green-700"
+                            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-card-foreground transition hover:bg-accent hover:text-accent-foreground"
                             onClick={closeMenu}
                         >
-                            <HelpCircle className="h-4 w-4 text-green-700" />
+                            <HelpCircle className="h-4 w-4 text-primary" />
                             Help
                         </Link>
                     </div>
 
-                    <form action="/api/auth/signout" method="post" className="mt-3 border-t border-zinc-200 pt-3">
+                    <form action="/api/auth/signout" method="post" className="mt-3 border-t border-border pt-3">
                         <input type="hidden" name="callbackUrl" value="/login" />
-                        <button
+                        <Button
                             type="submit"
-                            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                            variant="ghost"
+                            className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
                             onClick={closeMenu}
                         >
                             <LogOut className="h-4 w-4" />
                             Sign out
-                        </button>
+                        </Button>
                     </form>
                 </div>
             )}

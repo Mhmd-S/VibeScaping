@@ -4,11 +4,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { useRouter, useSearchParams } from 'next/navigation';
 import html2canvas from 'html2canvas';
+import { X, Loader2 } from 'lucide-react';
 
 import { useCurrentLocation } from '@/app/hooks/useCurrentLocation';
 import { usePolygonDrawing } from '@/app/hooks/usePolygonDrawing';
 import { saveGenerationSession } from '@/app/utils/generationSession';
 import { Location } from '@/app/types/landscape';
+import { Button } from '@/app/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const mapContainerStyle = {
     width: '100%',
@@ -454,12 +458,12 @@ const MapView = () => {
 
     if (!googleMapsApiKey) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-                <div className="rounded-lg bg-white p-8 shadow-lg dark:bg-zinc-900">
-                    <h2 className="mb-4 text-xl font-semibold text-black dark:text-zinc-50">
+            <div className="flex min-h-screen items-center justify-center bg-background font-sans">
+                <div className="rounded-lg bg-card p-8 shadow-lg">
+                    <h2 className="mb-4 text-xl font-semibold text-card-foreground">
                         Google Maps API Key Required
                     </h2>
-                    <p className="text-zinc-600 dark:text-zinc-400">
+                    <p className="text-muted-foreground">
                         Please set the NEXT_PUBLIC_GOOGLE_MAPS_API_KEY environment variable.
                     </p>
                 </div>
@@ -469,12 +473,12 @@ const MapView = () => {
 
     if (loadError) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-                <div className="rounded-lg bg-white p-8 shadow-lg dark:bg-zinc-900">
-                    <h2 className="mb-4 text-xl font-semibold text-black dark:text-zinc-50">
+            <div className="flex min-h-screen items-center justify-center bg-background font-sans">
+                <div className="rounded-lg bg-card p-8 shadow-lg">
+                    <h2 className="mb-4 text-xl font-semibold text-card-foreground">
                         Google Maps failed to load
                     </h2>
-                    <p className="text-zinc-600 dark:text-zinc-400">
+                    <p className="text-muted-foreground">
                         {loadError.message || 'Please refresh and try again.'}
                     </p>
                 </div>
@@ -514,32 +518,33 @@ const MapView = () => {
 
             <div className="pointer-events-none absolute left-0 right-0 top-3 z-10 px-4 sm:top-4">
                 <div className="pointer-events-auto mb-2 flex justify-end">
-                    <button
+                    <Button
+                        variant="outline"
                         onClick={() => router.push('/dashboard')}
-                        className="rounded-lg border border-zinc-200 bg-white/95 px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm transition hover:border-blue-500 hover:text-blue-600 dark:border-zinc-700 dark:bg-zinc-900/95 dark:text-zinc-100 dark:hover:border-blue-400 dark:hover:text-blue-300"
+                        className="bg-card/95 backdrop-blur"
                     >
                         Dashboard
-                    </button>
+                    </Button>
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="pointer-events-auto w-full rounded-xl bg-white/95 p-4 shadow-lg backdrop-blur dark:bg-zinc-900/95 sm:max-w-lg lg:max-w-xl">
+                    <div className="pointer-events-auto w-full rounded-xl bg-card/95 p-4 shadow-lg backdrop-blur sm:max-w-lg lg:max-w-xl">
                         <div className="flex items-center justify-between gap-3">
                             <div>
-                                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                                <p className="text-sm font-semibold text-card-foreground">
                                     Choose a location
                                 </p>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                <p className="text-xs text-muted-foreground">
                                     Search by address or use your current location
                                 </p>
                             </div>
                             {loading && (
-                                <span className="text-xs text-blue-600 dark:text-blue-300">
+                                <span className="text-xs text-primary">
                                     Detecting location...
                                 </span>
                             )}
                         </div>
                         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                            <input
+                            <Input
                                 value={searchQuery}
                                 onChange={(event) => setSearchQuery(event.target.value)}
                                 onKeyDown={(event) => {
@@ -550,28 +555,30 @@ const MapView = () => {
                                 }}
                                 disabled={isGenerating}
                                 placeholder="Enter an address, city, or coordinates"
-                                className="w-full flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-blue-400 dark:focus:ring-blue-900"
+                                className="w-full flex-1"
                             />
                             <div className="flex flex-col gap-2 sm:flex-row">
-                                <button
+                                <Button
                                     onClick={searchAddress}
                                     disabled={isSearching || isGenerating}
-                                    className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                    className="shrink-0"
                                 >
                                     {isSearching ? 'Searching...' : 'Find'}
-                                </button>
+                                </Button>
                             </div>
                         </div>
                         {(searchError || error) && (
-                            <div className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-900/50 dark:text-red-200">
-                                {searchError || error}
-                            </div>
+                            <Alert variant="destructive" className="mt-2">
+                                <AlertDescription className="text-xs">
+                                    {searchError || error}
+                                </AlertDescription>
+                            </Alert>
                         )}
                     </div>
 
                     <div
                         className={`
-                            pointer-events-auto w-full rounded-xl bg-white/95 p-4 shadow-lg backdrop-blur dark:bg-zinc-900/95 sm:max-w-sm md:w-80 md:shrink-0
+                            pointer-events-auto w-full rounded-xl bg-card/95 p-4 shadow-lg backdrop-blur sm:max-w-sm md:w-80 md:shrink-0
                             fixed bottom-0 left-4 right-4 z-20
                             sm:relative sm:bottom-auto sm:left-auto sm:right-auto sm:z-auto
                             ${isGenerating ? "pointer-events-none opacity-80" : ""}
@@ -582,45 +589,43 @@ const MapView = () => {
                         }}
                     >
                         <div className="flex items-center justify-between">
-                            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                            <p className="text-sm font-semibold text-card-foreground">
                                 Select Area
                             </p>
                             {drawnPolygon && (
-                                <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-300">
+                                <span className="text-[11px] font-medium text-primary">
                                     Area ready
                                 </span>
                             )}
                         </div>
                         <div className="mt-3 flex flex-col gap-2">
-                            <button
+                            <Button
                                 onClick={drawnPolygon ? captureImage : toggleDrawingMode}
                                 disabled={drawnPolygon ? isGenerating : false}
-                                className={`rounded-lg px-4 py-2 text-sm font-medium shadow transition-colors ${
-                                    drawnPolygon
-                                        ? 'bg-blue-600 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600'
-                                        : isDrawingMode
-                                            ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600'
-                                            : 'bg-white text-black hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700'
-                                }`}
+                                variant={isDrawingMode ? 'destructive' : drawnPolygon ? 'default' : 'outline'}
+                                className="w-full"
                             >
                                 {drawnPolygon
                                     ? (isGenerating ? 'Generating...' : 'Generate Landscape Map')
                                     : (isDrawingMode ? 'Stop Drawing' : 'Start Freehand Drawing')}
-                            </button>
+                            </Button>
                             {isDrawingMode && (
-                                <div className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                    {isDrawing
-                                        ? 'Move mouse to draw. Click near the green dot to close, or click anywhere to finish'
-                                        : 'Click to start drawing, then move mouse'}
-                                </div>
+                                <Alert className="py-2">
+                                    <AlertDescription className="text-xs">
+                                        {isDrawing
+                                            ? 'Move mouse to draw. Click near the green dot to close, or click anywhere to finish'
+                                            : 'Click to start drawing, then move mouse'}
+                                    </AlertDescription>
+                                </Alert>
                             )}
-                            <button
+                            <Button
                                 onClick={handleClearPolygon}
                                 disabled={!drawnPolygon}
-                                className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black shadow transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
+                                variant="outline"
+                                className="w-full"
                             >
                                 Clear Area
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -629,38 +634,36 @@ const MapView = () => {
             {isMapLoaded && (
                 <>
                     {generateError && (
-                        <div className="absolute top-4 right-4 max-w-md rounded-lg bg-red-100 p-4 shadow-lg dark:bg-red-900">
+                        <Alert variant="destructive" className="absolute top-4 right-4 max-w-md shadow-lg">
                             <div className="flex items-start gap-3">
                                 <div className="flex-1">
-                                    <p className="text-sm font-medium text-red-800 dark:text-red-200">
-                                        Generation Error
-                                    </p>
-                                    <div className="mt-1 text-xs text-red-600 dark:text-red-300 whitespace-pre-line">
+                                    <AlertTitle>Generation Error</AlertTitle>
+                                    <AlertDescription className="mt-1 whitespace-pre-line text-xs">
                                         {generateError}
-                                    </div>
+                                    </AlertDescription>
                                 </div>
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="icon-sm"
                                     onClick={() => setGenerateError(null)}
-                                    className="text-red-500 hover:text-red-700 dark:text-red-300 dark:hover:text-red-100"
+                                    className="text-destructive hover:text-destructive"
                                 >
-                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
+                                    <X className="h-4 w-4" />
+                                </Button>
                             </div>
-                        </div>
+                        </Alert>
                     )}
 
                     {isGenerating && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                            <div className="rounded-xl bg-white p-8 shadow-2xl dark:bg-zinc-900">
+                            <div className="rounded-xl bg-card p-8 shadow-2xl">
                                 <div className="flex flex-col items-center gap-4">
-                                    <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
+                                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
                                     <div className="text-center">
-                                        <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                                        <p className="text-lg font-semibold text-card-foreground">
                                             Generating Landscape Map
                                         </p>
-                                        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                                        <p className="mt-1 text-sm text-muted-foreground">
                                             Processing...
                                         </p>
                                     </div>

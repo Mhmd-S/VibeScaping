@@ -17,15 +17,15 @@ export const AnnotationList = ({
     if (annotations.length === 0) return null;
 
   return (
-    <div className="border-t border-zinc-700 bg-zinc-800 px-4 py-3">
+    <div className="border-t border-border bg-card px-4 py-3">
       <div className="flex flex-wrap gap-2">
         {annotations.map((ann) => (
           <div
             key={ann.id}
             className={`flex items-center gap-2 rounded-full px-3 py-1 text-sm max-w-xs cursor-pointer transition-colors ${
               selectedLabelIds.includes(ann.id)
-                ? "bg-blue-600 ring-2 ring-blue-400"
-                : "bg-zinc-700 hover:bg-zinc-600"
+                ? "bg-primary ring-2 ring-ring"
+                : "bg-secondary hover:bg-secondary/80"
             }`}
             onClick={() => onSelectAnnotation(ann.id)}
           >
@@ -33,7 +33,7 @@ export const AnnotationList = ({
               className="h-3 w-3 shrink-0 rounded-full"
               style={{ backgroundColor: ann.color }}
             />
-            <span className="text-white truncate">
+            <span className={selectedLabelIds.includes(ann.id) ? "text-primary-foreground truncate" : "text-card-foreground truncate"}>
               {ann.text || `${ann.type} annotation`}
             </span>
             <button
@@ -41,7 +41,7 @@ export const AnnotationList = ({
                 e.stopPropagation();
                 onDeleteAnnotation(ann.id);
               }}
-              className="shrink-0 text-zinc-400 hover:text-red-400"
+              className="shrink-0 text-muted-foreground hover:text-destructive"
             >
               <X className="h-3 w-3" />
             </button>
