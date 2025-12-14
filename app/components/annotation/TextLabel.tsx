@@ -6,7 +6,6 @@ import { Annotation } from "../../types/landscape";
 import {
   DEFAULT_LABEL_WIDTH,
   DEFAULT_LABEL_HEIGHT,
-  MIN_LABEL_WIDTH,
 } from "../../utils/annotationHelpers";
 
 interface TextAreaProps {
@@ -26,7 +25,7 @@ const TextArea = ({ textNode, onClose, onChange, onClick }: TextAreaProps) => {
     const stage = textNode.getStage();
     if (!stage) return;
     const textPosition = textNode.position();
-    const stageBox = stage.container().getBoundingClientRect();
+
     const areaPosition = {
       x: textPosition.x,
       y: textPosition.y,
@@ -70,7 +69,7 @@ const TextArea = ({ textNode, onClose, onChange, onClick }: TextAreaProps) => {
     const handleOutsideClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
       const clickedNode = e.target;
       // Check if the click is outside the textarea and not on the text node itself
-      if (clickedNode !== textNode && !textarea.contains(e.evt.target as Node)) {
+      if (clickedNode.className !== textNode.className) {
         onChange(textarea.value);
         onClose();
       }
@@ -269,6 +268,7 @@ export const TextLabel = ({
         />
       )}
       <Transformer
+      visible={isSelected && !isEditing}
         ref={trRef}
         x={labelOffset.x}
         y={labelOffset.y}

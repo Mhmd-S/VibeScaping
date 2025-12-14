@@ -128,7 +128,7 @@ export const AnnotationEditor = ({
   const [annotations, setAnnotations] = useState<Map<string, Annotation>>(
     new Map()
   );
-  const [currentTool, setCurrentTool] = useState<AnnotationTool>("line");
+  const [currentTool, setCurrentTool] = useState<AnnotationTool>("select");
   const annotationColor = "#ef4444";
   const [isAnnotationDrawing, setIsAnnotationDrawing] = useState(false);
   const [currentAnnotationPoints, setCurrentAnnotationPoints] = useState<
@@ -165,6 +165,7 @@ export const AnnotationEditor = ({
     width: number;
     height: number;
   } | null>(null);
+  const justCompletedDragSelectRef = useRef(false);
   
   // Convert Map to array for filtering
   const annotationsArray = useMemo(() => Array.from(annotations.values()), [annotations]);
@@ -425,8 +426,16 @@ export const AnnotationEditor = ({
             selectionStartRef.current,
             pos
           );
-          setSelectionRect(normalized);
-          selectAnnotationsInRect(normalized);
+          // Check if this was actually a drag (not just a click)
+          const wasDrag = normalized.width > 3 || normalized.height > 3;
+          if (wasDrag) {
+            justCompletedDragSelectRef.current = true;
+            setSelectionRect(normalized);
+            selectAnnotationsInRect(normalized);
+          } else {
+            // It was just a click, not a drag
+            justCompletedDragSelectRef.current = false;
+          }
         }
         selectionStartRef.current = null;
         setSelectionRect(null);
@@ -498,23 +507,33 @@ export const AnnotationEditor = ({
   const handleStageClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
       if (isAnnotationDrawing) return;
+      
+
+      if (editingAnnotationId) {
+        setEditingAnnotationId(null);
+        return;
+      }
+
+      // Skip if we just completed a drag selection
+      if (justCompletedDragSelectRef.current) {
+        justCompletedDragSelectRef.current = false;
+        return;
+      }
+
       const target = e.target;
       const stage = target.getStage();
-      const targetType = target.getType();
 
-      if (targetType === "Image" || target === stage) {
-        console.log("Reset Click");
+      if (target.className === "Image" || target === stage) {
         setSelectedAnnotationIds([]);
       }
     },
-    [isAnnotationDrawing]
+    [isAnnotationDrawing, editingAnnotationId]
   );
 
   const updateAnnotationText = useCallback((id: string, text: string) => {
-    setAnnotations((prev) => {
+    setAnnotations((prev: Map<string, Annotation>) => {
       const ann = prev.get(id);
       if (!ann || ann.type !== "textbox") return prev;
-      
       // Calculate new height based on text content
       const tempText = new Konva.Text({
         text: text,
@@ -527,7 +546,7 @@ export const AnnotationEditor = ({
       const textHeight = tempText.height();
       const newHeight = Math.max(36, textHeight + 24);
 
-      const next = new Map(prev);
+      const next = new Map<string, Annotation>(prev);
       next.set(id, {
         ...ann,
         text,
@@ -536,9 +555,11 @@ export const AnnotationEditor = ({
           height: newHeight,
         },
       });
+
+      console.log("Next", next);
       return next;
     });
-  }, []);
+  }, [annotations]);
 
   const deleteAnnotation = useCallback((idOrIds: string | string[]) => {
     const idsToDelete = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
