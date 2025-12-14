@@ -1,146 +1,12 @@
-import { Rect, Text, Transformer } from "react-konva";
-import { Html } from "react-konva-utils";
+import { Text, Transformer } from "react-konva";
 import { useEffect, useRef, useState, useCallback } from "react";
 import Konva from "konva";
-import { Annotation } from "../../types/landscape";
+import { Annotation } from "@/app/types/landscape";
 import {
   DEFAULT_LABEL_WIDTH,
   DEFAULT_LABEL_HEIGHT,
-} from "../../utils/annotationHelpers";
-
-interface TextAreaProps {
-  textNode: Konva.Text;
-  onClose: () => void;
-  onChange: (text: string) => void;
-  onClick: (e: Konva.KonvaEventObject<Event>) => void;
-}
-
-const TextArea = ({ textNode, onClose, onChange, onClick }: TextAreaProps) => {
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-
-  useEffect(() => {
-    if (!textareaRef.current) return;
-
-    const textarea = textareaRef.current;
-    const stage = textNode.getStage();
-    if (!stage) return;
-    const textPosition = textNode.position();
-
-    const areaPosition = {
-      x: textPosition.x,
-      y: textPosition.y,
-    };
-
-    // Match styles with the text node
-    textarea.value = textNode.text();
-    textarea.style.position = "absolute";
-    textarea.style.top = `${areaPosition.y}px`;
-    textarea.style.left = `${areaPosition.x}px`;
-    textarea.style.width = `${textNode.width() - textNode.padding() * 2}px`;
-    textarea.style.height = `${
-      textNode.height() - textNode.padding() * 2 + 5
-    }px`;
-    textarea.style.fontSize = `${textNode.fontSize()}px`;
-    textarea.style.border = "none";
-    textarea.style.padding = "12px";
-    textarea.style.margin = "0px";
-    textarea.style.overflow = "hidden";
-    textarea.style.background = "none";
-    textarea.style.outline = "none";
-    textarea.style.resize = "none";
-    textarea.style.lineHeight = `${textNode.lineHeight()}`;
-    textarea.style.fontFamily = textNode.fontFamily();
-    textarea.style.transformOrigin = "left top";
-    textarea.style.textAlign = textNode.align();
-    textarea.style.color = "#FF0000";
-
-    const rotation = textNode.rotation();
-    let transform = "";
-    if (rotation) {
-      transform += `rotateZ(${rotation}deg)`;
-    }
-    textarea.style.transform = transform;
-
-    textarea.style.height = "auto";
-    textarea.style.height = `${textarea.scrollHeight + 3}px`;
-
-    textarea.focus();
-
-    const handleOutsideClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
-      const clickedNode = e.target;
-      // Check if the click is outside the textarea and not on the text node itself
-      if (clickedNode.className !== textNode.className) {
-        onChange(textarea.value);
-        onClose();
-      }
-    };
-
-    // Add event listeners
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        onChange(textarea.value);
-        onClose();
-      }
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-
-    const handleInput = () => {
-      const scale = textNode.getAbsoluteScale().x;
-      textarea.style.width = `${textNode.width() * scale}px`;
-      textarea.style.height = "auto";
-      textarea.style.height = `${
-        textarea.scrollHeight + textNode.fontSize()
-      }px`;
-    };
-
-    textarea.addEventListener("keydown", handleKeyDown);
-    textarea.addEventListener("input", handleInput);
-    
-    // Add click listener to the Konva stage instead of window
-    setTimeout(() => {
-      if (stage) {
-        stage.on("click", handleOutsideClick);
-      }
-    });
-
-    return () => {
-      textarea.removeEventListener("keydown", handleKeyDown);
-      textarea.removeEventListener("input", handleInput);
-      if (stage) {
-        stage.off("click", handleOutsideClick);
-      }
-    };
-  }, [textNode, onChange, onClose]);
-
-  return (
-    <textarea
-      ref={textareaRef}
-      style={{
-        minHeight: "1em",
-        position: "absolute",
-      }}
-    />
-  );
-};
-
-interface TextEditorProps {
-  textNode: Konva.Text;
-  onClose: () => void;
-  onChange: (text: string) => void;
-  onClick: (e: Konva.KonvaEventObject<Event>) => void;
-}
-
-const TextEditor = (props: TextEditorProps) => {
-  return (
-    <Html>
-      <TextArea {...props} />
-    </Html>
-  );
-};
-
+} from "@/app/utils/annotationHelpers";
+import TextEditor from "@/app/components/annotation/TextEditor";
 interface TextLabelProps {
   annotation: Annotation;
   onDragEnd: (id: string, x: number, y: number) => void;
@@ -189,13 +55,6 @@ export const TextLabel = ({
     }
   }, [isSelected, isEditing]);
 
-
-  const handleTextChange = useCallback(
-    (newText: string) => {
-      onTextChange(annotation.id, newText);
-    },
-    [annotation.id, onTextChange]
-  );
 
   const handleTransform = useCallback(() => {
     const node = textRef.current;
@@ -262,9 +121,8 @@ export const TextLabel = ({
       {isEditing && textRef.current && (
         <TextEditor
           textNode={textRef.current}
-          onChange={handleTextChange}
-          onClose={onFinishEditing}
-          onClick={handleClick}
+          handleTextChange={(newText: string) => onTextChange(annotation.id, newText)}
+          onFinishEditing={onFinishEditing}
         />
       )}
       <Transformer

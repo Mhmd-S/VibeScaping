@@ -530,10 +530,13 @@ export const AnnotationEditor = ({
     [isAnnotationDrawing, editingAnnotationId]
   );
 
-  const updateAnnotationText = useCallback((id: string, text: string) => {
+  const updateAnnotationText = (id: string, text: string) => {
     setAnnotations((prev: Map<string, Annotation>) => {
       const ann = prev.get(id);
       if (!ann || ann.type !== "textbox") return prev;
+
+      console.log("Update annotation text", text);
+
       // Calculate new height based on text content
       const tempText = new Konva.Text({
         text: text,
@@ -556,11 +559,9 @@ export const AnnotationEditor = ({
         },
       });
 
-      console.log("Next", next);
       return next;
     });
-  }, [annotations]);
-
+  }
   const deleteAnnotation = useCallback((idOrIds: string | string[]) => {
     const idsToDelete = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
     const deleteSet = new Set(idsToDelete);
