@@ -38,7 +38,7 @@ export const AnnotationToolbar = ({
     <div className="flex w-16 flex-col items-center gap-1 border-r border-border bg-card py-4">
       <Button
         onClick={onBack}
-        variant="default"
+        variant="outline"
         size="icon"
         title="Back to dashboard"
       >
