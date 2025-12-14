@@ -75,7 +75,7 @@ export const ProjectCard = ({
                 {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
             </button>
             <CardHeader className="p-0">
-                <div className="relative h-48 w-full overflow-hidden bg-muted p-0">
+                <div className="relative h-48 w-full overflow-hidden p-0 rounded-t-2xl">
                     {hasPreview ? (
                         <Image
                             src={latestDesignUrl}
