@@ -64,11 +64,15 @@ export async function POST(request: NextRequest) {
         let prompt: string;
 
         if (isRevision && revisionNotes && revisionNotes.length > 0) {
-            prompt = `The user has marked areas with annotations in red indicating what changes they want. Please revise the landscape map according to these requested changes:
+            prompt = `The user has marked areas with annotations in red and an arrow pointing to the area indicating what changes they want. Please revise the landscape map according to these requested changes:
 
             Generate a new version of this landscape architecture map incorporating all the requested changes. 
+
+            Focus closely on the area indicated by the arrow and the annotations.
             
             Maintain the same overall style and quality, align with the included reference landscape style images, and apply the specific modifications indicated. Do not include any text and annotations in the output image.      
+
+            Make sure if you are adding vegetation, the size of the vegetation is realistic and not too large or too small.
 
             Do not rotate, scale, or distort the image.`;
         } else {
