@@ -7,6 +7,6 @@ export default withAuth({
 });
 
 export const config = {
-    matcher: ['/dashboard', '/api/projects', '/api/generate-landscape', '/editor'],
+    matcher: ['/chat', '/api/projects', '/api/generate-landscape', '/editor'],
 };
 

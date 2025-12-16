@@ -1,7 +1,7 @@
 import { Text, Transformer } from "react-konva";
 import { useEffect, useRef, useState, useCallback } from "react";
 import Konva from "konva";
-import { Annotation } from "@/app/types/landscape";
+import { Annotation } from "@/app/types/annotation";
 import {
   DEFAULT_LABEL_WIDTH,
   DEFAULT_LABEL_HEIGHT,

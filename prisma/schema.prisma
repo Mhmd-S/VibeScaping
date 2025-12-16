@@ -13,15 +13,16 @@ model User {
     emailVerified  DateTime?
     image          String?
     password       String
+    apiKey         String?   @db.Text
     createdAt      DateTime  @default(now())
     updatedAt      DateTime  @updatedAt
 
-    projects       Project[]
+    workspaces     Workspace[]
     accounts       Account[]
     sessions       Session[]
 }
 
-model Project {
+model Workspace {
     id           String   @id @default(cuid())
     name         String
     description  String?
@@ -31,14 +32,14 @@ model Project {
     lastOpenedAt DateTime?
 
     owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-    designs Design[]
+    annotatedImages AnnotatedImage[]
 
     @@index([ownerId])
 }
 
-model Design {
+model AnnotatedImage {
     id                String   @id @default(cuid())
-    projectId         String
+    workspaceId       String
     generatedImageUrl String
     originalImageUrl  String?
     mimeType          String
@@ -47,9 +48,9 @@ model Design {
     createdAt         DateTime @default(now())
     updatedAt         DateTime @updatedAt
 
-    project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-    @@index([projectId])
+    @@index([workspaceId])
 }
 
 model Account {

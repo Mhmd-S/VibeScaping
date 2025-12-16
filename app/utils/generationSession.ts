@@ -1,6 +1,6 @@
 'use client';
 
-import { GeneratedImage, RevisionNode } from '../types/landscape';
+import { GeneratedImage, RevisionNode } from '../types/annotation';
 
 const STORAGE_KEY = 'landscape-session';
 

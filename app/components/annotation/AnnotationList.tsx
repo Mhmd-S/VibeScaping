@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { Annotation } from "../../types/landscape";
+import { Annotation } from "../../types/annotation";
 
 interface AnnotationListProps {
     annotations: Annotation[];

@@ -7,7 +7,7 @@ const Home = async () => {
     const session = await getServerSession(authOptions);
 
     if (session?.user?.id) {
-        redirect('/dashboard');
+        redirect('/chat');
     }
 
     redirect('/login');

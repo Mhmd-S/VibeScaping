@@ -1,6 +1,6 @@
 import Konva from "konva";
 import { Arrow, Line } from "react-konva";
-import { Annotation, Point } from "../types/landscape";
+import { Annotation, Point } from "../types/annotation";
 
 type RenderOptions = {
     isSelected?: boolean;

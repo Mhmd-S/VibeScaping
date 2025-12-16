@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 const LoginPage = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const callbackUrl = searchParams.get('callbackUrl') ?? '/dashboard';
+    const callbackUrl = searchParams.get('callbackUrl') ?? '/chat';
     const justRegistered = useMemo(() => searchParams.get('registered') === '1', [searchParams]);
 
     const [email, setEmail] = useState('');

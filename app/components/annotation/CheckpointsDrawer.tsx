@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { RevisionNode } from "../../types/landscape";
+import { RevisionNode } from "../../types/annotation";
 
 const publicImageBaseUrl =
   process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL || process.env.CLOUDFLARE_R2_PUBLIC_URL;

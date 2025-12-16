@@ -2,10 +2,10 @@ import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import { cookies, headers } from 'next/headers';
 
-import ProjectDashboard from '@/app/components/dashboard/ProjectDashboard';
+import ChatLayoutClient from '@/app/components/chat/ChatLayoutClient';
 import { authOptions } from '@/lib/auth';
 
-const DashboardPage = async () => {
+const ChatLayout = async ({ children }: { children: React.ReactNode }) => {
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
@@ -23,11 +23,11 @@ const DashboardPage = async () => {
         ?? (host ? `${protocol}://${host}` : undefined);
 
     if (!baseUrl) {
-        console.error('Failed to load projects for dashboard: missing base URL');
+        console.error('Failed to load workspaces: missing base URL');
         redirect('/login');
     }
 
-    const response = await fetch(new URL('/api/projects', baseUrl), {
+    const response = await fetch(new URL('/api/workspaces', baseUrl), {
         headers: {
             cookie: cookieHeader,
         },
@@ -39,18 +39,21 @@ const DashboardPage = async () => {
         if (response.status === 401) {
             redirect('/login');
         }
-        console.error('Failed to load projects for dashboard', body || response.statusText);
+        console.error('Failed to load workspaces', body || response.statusText);
         redirect('/login');
     }
 
-    const { projects: serializedProjects } = await response.json();
+    const { workspaces: serializedWorkspaces } = await response.json();
 
     return (
-        <ProjectDashboard
-            initialProjects={serializedProjects}
-            userName={session.user?.name ?? session.user?.email ?? 'You'}
-        />
+        <ChatLayoutClient
+            initialWorkspaces={serializedWorkspaces}
+            userName={session.user?.name ?? session.user?.email ?? 'User'}
+            userEmail={session.user?.email ?? ''}
+        >
+            {children}
+        </ChatLayoutClient>
     );
 };
 
-export default DashboardPage;
+export default ChatLayout;

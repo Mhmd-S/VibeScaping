@@ -1,20 +1,10 @@
-export interface Location {
-    lat: number;
-    lng: number;
-}
-
-export interface PolygonPath {
-    lat: number;
-    lng: number;
-}
-
 export interface GeneratedImage {
     image: string;
     mimeType: string;
     description?: string;
 }
 
-export type AnnotationTool = 'select' | 'line' | 'arrow' | 'textbox' | 'freehand';
+export type AnnotationTool = 'select' | 'line' | 'arrow' | 'textbox' | 'freehand' | 'crop';
 
 export interface Point {
     x: number;

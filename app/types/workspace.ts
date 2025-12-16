@@ -1,4 +1,4 @@
-export interface ProjectDesignSummary {
+export interface AnnotatedImageSummary {
     id: string;
     generatedImageUrl: string;
     originalImageUrl: string | null;
@@ -8,13 +8,13 @@ export interface ProjectDesignSummary {
     updatedAt: string;
 }
 
-export interface Project {
+export interface Workspace {
     id: string;
     name: string;
     description: string | null;
     createdAt: string;
     updatedAt: string;
     lastOpenedAt: string | null;
-    lastDesign?: ProjectDesignSummary | null;
+    lastAnnotatedImage?: AnnotatedImageSummary | null;
 }
 

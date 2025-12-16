@@ -10,7 +10,7 @@ import {
   GeneratedImage,
   Point,
   RevisionNode,
-} from "../types/landscape";
+} from "../types/annotation";
 import { useImage } from "../hooks/useImage";
 import {
   MIN_LABEL_HEIGHT,
@@ -165,6 +165,13 @@ export const AnnotationEditor = ({
     width: number;
     height: number;
   } | null>(null);
+  const [cropRect, setCropRect] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const cropStartRef = useRef<Point | null>(null);
   const justCompletedDragSelectRef = useRef(false);
   
   // Convert Map to array for filtering
@@ -368,6 +375,17 @@ export const AnnotationEditor = ({
         return;
       }
 
+      if (currentTool === "crop") {
+        cropStartRef.current = pos;
+        setCropRect({
+          x: pos.x,
+          y: pos.y,
+          width: 0,
+          height: 0,
+        });
+        return;
+      }
+
       setIsAnnotationDrawing(true);
       setCurrentAnnotationPoints([{ x: pos.x, y: pos.y }]);
     },
@@ -386,6 +404,14 @@ export const AnnotationEditor = ({
         if (!selectionStartRef.current) return;
         setSelectionRect(
           normalizeSelectionRect(selectionStartRef.current, pos)
+        );
+        return;
+      }
+
+      if (currentTool === "crop") {
+        if (!cropStartRef.current) return;
+        setCropRect(
+          normalizeSelectionRect(cropStartRef.current, pos)
         );
         return;
       }
@@ -439,6 +465,23 @@ export const AnnotationEditor = ({
         }
         selectionStartRef.current = null;
         setSelectionRect(null);
+        return;
+      }
+
+      if (currentTool === "crop") {
+        if (cropStartRef.current && pos && cropRect) {
+          const normalized = normalizeSelectionRect(
+            cropStartRef.current,
+            pos
+          );
+          // Check if this was actually a drag (not just a click)
+          const wasDrag = normalized.width > 3 && normalized.height > 3;
+          if (wasDrag) {
+            performCrop(normalized);
+          }
+        }
+        cropStartRef.current = null;
+        setCropRect(null);
         return;
       }
 
@@ -682,6 +725,96 @@ export const AnnotationEditor = ({
     return { width, height, offset: CANVAS_PADDING };
   }, [generatedSize]);
 
+  const performCrop = useCallback(
+    async (cropRect: { x: number; y: number; width: number; height: number }) => {
+      if (!konvaImage || !generatedSize || !stageRef.current) return;
+
+      try {
+        // Account for zoom, rotation, and padding
+        const padding = stageLayout?.offset || CANVAS_PADDING;
+        const scale = imageZoom;
+        
+        // Convert stage coordinates to image coordinates
+        // Account for padding and zoom
+        const imageX = (cropRect.x - padding) / scale;
+        const imageY = (cropRect.y - padding) / scale;
+        const imageWidth = cropRect.width / scale;
+        const imageHeight = cropRect.height / scale;
+
+        // Ensure crop area is within image bounds
+        const cropX = Math.max(0, Math.min(imageX, generatedSize.width));
+        const cropY = Math.max(0, Math.min(imageY, generatedSize.height));
+        const cropWidth = Math.max(1, Math.min(imageWidth, generatedSize.width - cropX));
+        const cropHeight = Math.max(1, Math.min(imageHeight, generatedSize.height - cropY));
+
+        // Create a canvas to extract the cropped area
+        const canvas = document.createElement('canvas');
+        canvas.width = cropWidth;
+        canvas.height = cropHeight;
+        const ctx = canvas.getContext('2d');
+        
+        if (!ctx) {
+          onError('Failed to create canvas context for cropping');
+          return;
+        }
+
+        // konvaImage is already an HTMLImageElement from useImage hook
+        if (!konvaImage) {
+          onError('Image not loaded yet');
+          return;
+        }
+
+        // Draw the cropped portion
+        ctx.drawImage(
+          konvaImage,
+          cropX, cropY, cropWidth, cropHeight,
+          0, 0, cropWidth, cropHeight
+        );
+
+        // Convert canvas to base64
+        const croppedDataUrl = canvas.toDataURL(activeImage.mimeType || 'image/png');
+
+        // Update the active image with cropped version
+        const croppedImage: GeneratedImage = {
+          image: croppedDataUrl,
+          mimeType: activeImage.mimeType || 'image/png',
+          description: activeImage.description,
+        };
+
+        setActiveImage(croppedImage);
+        setAnnotations(new Map()); // Clear annotations after crop
+        setImageZoom(1);
+        setImageRotation(0);
+
+        // Add to revision history
+        setRevisionHistory((prev) => {
+          const parentId = prev.length ? prev[prev.length - 1].id : null;
+          const next: RevisionNode = {
+            id: `rev-${Date.now()}`,
+            parentId,
+            image: croppedDataUrl,
+            mimeType: activeImage.mimeType || 'image/png',
+            annotations: [],
+            timestamp: Date.now(),
+            label: 'Cropped',
+          };
+          return [...prev, next];
+        });
+        lastRevisionImageRef.current = croppedDataUrl;
+
+        // Switch back to select tool after cropping
+        setCurrentTool('select');
+      } catch (err) {
+        onError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to crop image. Please try again.'
+        );
+      }
+    },
+    [konvaImage, generatedSize, imageZoom, stageLayout, imageSrc, activeImage, onError]
+  );
+
   const spawnTextbox = () => {
     if (!generatedSize || !mainScrollRef.current) return;
 
@@ -744,7 +877,7 @@ export const AnnotationEditor = ({
         .filter((ann) => ann.text)
         .map((ann) => ann.text);
 
-      const response = await fetch("/api/generate-landscape", {
+      const response = await fetch("/api/generate-image", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -754,7 +887,6 @@ export const AnnotationEditor = ({
           mimeType: "image/png",
           isRevision: true,
           revisionNotes: annotationTexts,
-          revisionMode: "annotation",
         }),
       });
 
@@ -762,7 +894,7 @@ export const AnnotationEditor = ({
 
       if (!response.ok) {
         throw new Error(
-          data.details || data.error || "Failed to revise landscape"
+          data.details || data.error || "Failed to revise image"
         );
       }
 
@@ -797,7 +929,7 @@ export const AnnotationEditor = ({
       onError(
         err instanceof Error
           ? err.message
-          : "Failed to revise landscape. Please try again."
+          : "Failed to revise image. Please try again."
       );
     } finally {
       setIsRevising(false);
@@ -810,7 +942,7 @@ export const AnnotationEditor = ({
     setIsRevising(true);
 
     try {
-      const response = await fetch("/api/generate-landscape", {
+      const response = await fetch("/api/generate-image", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -826,7 +958,7 @@ export const AnnotationEditor = ({
 
       if (!response.ok) {
         throw new Error(
-          data.details || data.error || "Failed to generate new initial image"
+          data.details || data.error || "Failed to generate new image"
         );
       }
 
@@ -853,7 +985,7 @@ export const AnnotationEditor = ({
       onError(
         err instanceof Error
           ? err.message
-          : "Failed to generate new initial image. Please try again."
+          : "Failed to generate new image. Please try again."
       );
     } finally {
       setIsRevising(false);
@@ -871,7 +1003,7 @@ export const AnnotationEditor = ({
       const extension = activeImage.mimeType === "image/jpeg" ? "jpg" : "png";
       const link = document.createElement("a");
       link.href = dataUrl;
-      link.download = `landscape-${Date.now()}.${extension}`;
+      link.download = `annotated-image-${Date.now()}.${extension}`;
       link.click();
     } catch (err) {
       onError(
@@ -1183,7 +1315,9 @@ export const AnnotationEditor = ({
                         onMouseMove={handleStageMouseMove}
                         onMouseUp={handleStageMouseUp}
                         className={`rounded-lg shadow-2xl ${
-                          currentTool !== "select"
+                          currentTool !== "select" && currentTool !== "crop"
+                            ? "cursor-crosshair"
+                            : currentTool === "crop"
                             ? "cursor-crosshair"
                             : "cursor-default"
                         }`}
@@ -1275,6 +1409,19 @@ export const AnnotationEditor = ({
                               strokeWidth={1}
                               dash={[4, 4]}
                               fill="rgba(59, 130, 246, 0.08)"
+                              listening={false}
+                            />
+                          )}
+                          {cropRect && currentTool === "crop" && (
+                            <Rect
+                              x={cropRect.x}
+                              y={cropRect.y}
+                              width={cropRect.width}
+                              height={cropRect.height}
+                              stroke="#10b981"
+                              strokeWidth={2}
+                              dash={[4, 4]}
+                              fill="rgba(16, 185, 129, 0.1)"
                               listening={false}
                             />
                           )}

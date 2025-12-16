@@ -5,7 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 
-const updateProjectSchema = z
+const updateWorkspaceSchema = z
     .object({
         name: z.string().min(2).max(120).optional(),
         description: z.string().max(500).nullable().optional(),
@@ -14,20 +14,20 @@ const updateProjectSchema = z
         message: 'No updates provided',
     });
 
-const serializeProject = (project: any) => {
-    const { designs, ...projectData } = project;
-    const [latestDesign] = designs ?? [];
+const serializeWorkspace = (workspace: any) => {
+    const { annotatedImages, ...workspaceData } = workspace;
+    const [latestAnnotatedImage] = annotatedImages ?? [];
 
     return {
-        ...projectData,
-        createdAt: project.createdAt.toISOString(),
-        updatedAt: project.updatedAt.toISOString(),
-        lastOpenedAt: project.lastOpenedAt?.toISOString() ?? null,
-        lastDesign: latestDesign
+        ...workspaceData,
+        createdAt: workspace.createdAt.toISOString(),
+        updatedAt: workspace.updatedAt.toISOString(),
+        lastOpenedAt: workspace.lastOpenedAt?.toISOString() ?? null,
+        lastAnnotatedImage: latestAnnotatedImage
             ? {
-                  ...latestDesign,
-                  createdAt: latestDesign.createdAt.toISOString(),
-                  updatedAt: latestDesign.updatedAt.toISOString(),
+                  ...latestAnnotatedImage,
+                  createdAt: latestAnnotatedImage.createdAt.toISOString(),
+                  updatedAt: latestAnnotatedImage.updatedAt.toISOString(),
               }
             : null,
     };
@@ -35,42 +35,42 @@ const serializeProject = (project: any) => {
 
 export const PATCH = async (
     request: NextRequest,
-    context: { params: Promise<{ projectId: string }> },
+    context: { params: Promise<{ workspaceId: string }> },
 ) => {
-    const { projectId } = await context.params;
+    const { workspaceId } = await context.params;
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const project = await prisma.project.findFirst({
-        where: { id: projectId, ownerId: session.user.id },
+    const workspace = await prisma.workspace.findFirst({
+        where: { id: workspaceId, ownerId: session.user.id },
     });
 
-    if (!project) {
-        return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    if (!workspace) {
+        return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
     }
 
     try {
         const body = await request.json();
-        const parsed = updateProjectSchema.safeParse(body);
+        const parsed = updateWorkspaceSchema.safeParse(body);
 
         if (!parsed.success) {
             return NextResponse.json(
-                { error: 'Invalid project data', details: parsed.error.flatten() },
+                { error: 'Invalid workspace data', details: parsed.error.flatten() },
                 { status: 400 },
             );
         }
 
-        const updatedProject = await prisma.project.update({
-            where: { id: project.id },
+        const updatedWorkspace = await prisma.workspace.update({
+            where: { id: workspace.id },
             data: {
                 ...(parsed.data.name !== undefined ? { name: parsed.data.name } : {}),
                 ...(parsed.data.description !== undefined ? { description: parsed.data.description ?? '' } : {}),
             },
             include: {
-                designs: {
+                annotatedImages: {
                     orderBy: { createdAt: 'desc' },
                     take: 1,
                     select: {
@@ -86,11 +86,11 @@ export const PATCH = async (
             },
         });
 
-        return NextResponse.json({ project: serializeProject(updatedProject) });
+        return NextResponse.json({ workspace: serializeWorkspace(updatedWorkspace) });
     } catch (error) {
-        console.error('Project update failed:', error);
+        console.error('Workspace update failed:', error);
         return NextResponse.json(
-            { error: 'Unable to update project right now' },
+            { error: 'Unable to update workspace right now' },
             { status: 500 },
         );
     }
@@ -98,41 +98,34 @@ export const PATCH = async (
 
 export const DELETE = async (
     _request: NextRequest,
-    context: { params: Promise<{ projectId: string }> },
+    context: { params: Promise<{ workspaceId: string }> },
 ) => {
-    const { projectId } = await context.params;
+    const { workspaceId } = await context.params;
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const project = await prisma.project.findFirst({
-        where: { id: projectId, ownerId: session.user.id },
+    const workspace = await prisma.workspace.findFirst({
+        where: { id: workspaceId, ownerId: session.user.id },
     });
 
-    if (!project) {
-        return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    if (!workspace) {
+        return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
     }
 
     try {
-        await prisma.design.deleteMany({ where: { projectId: project.id } });
-        await prisma.project.delete({ where: { id: project.id } });
+        await prisma.annotatedImage.deleteMany({ where: { workspaceId: workspace.id } });
+        await prisma.workspace.delete({ where: { id: workspace.id } });
 
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('Project deletion failed:', error);
+        console.error('Workspace deletion failed:', error);
         return NextResponse.json(
-            { error: 'Unable to delete project right now' },
+            { error: 'Unable to delete workspace right now' },
             { status: 500 },
         );
     }
 };
-
-
-
-
-
-
-
 

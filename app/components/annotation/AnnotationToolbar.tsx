@@ -8,8 +8,9 @@ import {
     Type,
     ZoomIn,
     ZoomOut,
+    Crop,
 } from "lucide-react";
-import { AnnotationTool } from "../../types/landscape";
+import { AnnotationTool } from "../../types/annotation";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/utils";
 
@@ -84,6 +85,14 @@ export const AnnotationToolbar = ({
         title="Textbox"
       >
         <Type className="h-5 w-5" />
+      </Button>
+      <Button
+        onClick={() => onToolChange("crop")}
+        variant={currentTool === "crop" ? "default" : "ghost"}
+        size="icon"
+        title="Crop Image"
+      >
+        <Crop className="h-5 w-5" />
       </Button>
 
       <div className="my-2 h-px w-10 bg-border" />

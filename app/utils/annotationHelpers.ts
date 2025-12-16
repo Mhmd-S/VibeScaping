@@ -1,5 +1,5 @@
 import simplify from "simplify-js";
-import { Annotation, Point } from "../types/landscape";
+import { Annotation, Point } from "../types/annotation";
 
 // Label sizing constants
 export const MIN_LABEL_WIDTH = 80;
