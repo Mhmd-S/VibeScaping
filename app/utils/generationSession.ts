@@ -1,8 +1,18 @@
 'use client';
 
-import { GeneratedImage, RevisionNode } from '../types/annotation';
+import { GeneratedImage } from '../types/annotation';
 
 const STORAGE_KEY = 'landscape-session';
+
+export interface RevisionNode {
+    id: string;
+    parentId: string | null;
+    image: string;
+    mimeType: string;
+    annotations: string[];
+    timestamp: number;
+    label?: string;
+}
 
 export interface GenerationSession {
     generatedImage: GeneratedImage;

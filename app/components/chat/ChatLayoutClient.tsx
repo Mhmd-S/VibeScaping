@@ -7,6 +7,7 @@ import { useSession } from 'next-auth/react';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { Workspace } from '@/app/types/workspace';
 import { ChatSidebar03 } from '@/app/components/chat/ChatSidebar03';
+import { toast } from '@/components/ui/toast';
 
 interface ChatLayoutClientProps {
     children: React.ReactNode;
@@ -19,7 +20,6 @@ const ChatLayoutClient = ({ children, initialWorkspaces, userName, userEmail }: 
     const router = useRouter();
     const { data: session } = useSession();
     const [workspaces, setWorkspaces] = useState<Workspace[]>(initialWorkspaces);
-    const [error, setError] = useState<string | null>(null);
 
     const refreshWorkspaces = async () => {
         try {
@@ -31,8 +31,10 @@ const ChatLayoutClient = ({ children, initialWorkspaces, userName, userEmail }: 
             }
 
             setWorkspaces(body.workspaces ?? []);
+            toast.success('Workspaces refreshed');
         } catch (fetchError) {
-            setError(fetchError instanceof Error ? fetchError.message : 'Unable to load workspaces');
+            const errorMessage = fetchError instanceof Error ? fetchError.message : 'Unable to load workspaces';
+            toast.error(errorMessage);
         }
     };
 
@@ -42,11 +44,10 @@ const ChatLayoutClient = ({ children, initialWorkspaces, userName, userEmail }: 
 
     const handleRename = async (workspaceId: string, name: string) => {
         if (!name.trim()) {
-            setError('Workspace name cannot be empty');
-            throw new Error('Workspace name cannot be empty');
+            const errorMessage = 'Workspace name cannot be empty';
+            toast.error(errorMessage);
+            throw new Error(errorMessage);
         }
-
-        setError(null);
 
         try {
             const response = await fetch(`/api/workspaces/${workspaceId}`, {
@@ -74,16 +75,15 @@ const ChatLayoutClient = ({ children, initialWorkspaces, userName, userEmail }: 
                         : workspace,
                 ),
             );
+            toast.success('Workspace renamed successfully');
         } catch (renameError) {
             const errorMessage = renameError instanceof Error ? renameError.message : 'Could not rename workspace';
-            setError(errorMessage);
+            toast.error(errorMessage);
             throw renameError;
         }
     };
 
     const handleDelete = async (workspaceId: string) => {
-        setError(null);
-
         try {
             const response = await fetch(`/api/workspaces/${workspaceId}`, { method: 'DELETE' });
             const result = await response.json().catch(() => null);
@@ -93,9 +93,10 @@ const ChatLayoutClient = ({ children, initialWorkspaces, userName, userEmail }: 
             }
 
             setWorkspaces((current) => current.filter((workspace) => workspace.id !== workspaceId));
+            toast.success('Workspace deleted successfully');
         } catch (deleteError) {
             const errorMessage = deleteError instanceof Error ? deleteError.message : 'Could not delete workspace';
-            setError(errorMessage);
+            toast.error(errorMessage);
             throw deleteError;
         }
     };
@@ -118,9 +119,11 @@ const ChatLayoutClient = ({ children, initialWorkspaces, userName, userEmail }: 
             }
 
             await refreshWorkspaces();
+            toast.success('Workspace created successfully');
             router.push(`/editor?workspaceId=${result.workspace.id}`);
         } catch (creationError) {
-            setError(creationError instanceof Error ? creationError.message : 'Could not create workspace');
+            const errorMessage = creationError instanceof Error ? creationError.message : 'Could not create workspace';
+            toast.error(errorMessage);
         }
     };
 

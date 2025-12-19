@@ -24,8 +24,8 @@ import { Logo } from '@/components/sidebar-03/logo';
 import { NotificationsPopover } from '@/components/sidebar-03/nav-notifications';
 import { Button } from '@/components/ui/button';
 import { Workspace } from '@/app/types/workspace';
-import { DeleteProjectDialog } from '@/app/components/dashboard/DeleteProjectDialog';
-import ProfileMenu from '@/app/components/dashboard/ProfileMenu';
+import { DeleteProject } from '@/app/components/dialogs/DeleteProject';
+
 import {
     SidebarMenu,
     SidebarMenuButton,
@@ -321,18 +321,13 @@ export function ChatSidebar03({
                             Settings
                         </Button>
                     )}
-                    <div className="flex items-center justify-between">
-                        <ProfileMenu name={userName} email={userEmail} />
-                    </div>
                 </SidebarFooter>
             </Sidebar>
 
-            <DeleteProjectDialog
-                isOpen={Boolean(pendingDelete)}
-                projectName={pendingDelete?.name ?? null}
-                isDeleting={Boolean(deletingId)}
+            <DeleteProject
+                open={Boolean(pendingDelete)}
                 onClose={() => setPendingDelete(null)}
-                onConfirm={handleDelete}
+                onDelete={handleDelete}
             />
         </>
     );

@@ -46,6 +46,14 @@
   --radius-4xl: calc(var(--radius) + 16px);
 }
 
+
+.excalidraw {
+  --color-primary: var(--primary);
+  --color-primary-darker: var(--primary-darker);
+  --color-primary-darkest: var(--primary-darkest);
+  --color-primary-light: var(--primary-light);
+}
+
 :root {
   --radius: 0.875rem;
   --background: oklch(1 0 0);

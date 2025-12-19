@@ -57,10 +57,6 @@ export async function POST(request: NextRequest) {
             imageBase64,
             mimeType,
             prompt: userPrompt,
-            isRevision,
-            revisionNotes,
-            referenceOriginalImageBase64,
-            referenceOriginalMimeType,
         } = await request.json();
 
         if (!imageBase64) {
@@ -87,47 +83,18 @@ export async function POST(request: NextRequest) {
             apiKey,
         });
 
-        // Build generic prompt
-        let prompt: string;
+        // Use user-provided prompt or default generic prompt
+        const prompt = userPrompt || 'Generate or enhance the provided image based on the user\'s requirements. Maintain the same style, quality, and aspect ratio. Do not include any text or annotations in the output image. Use a clean background.';
 
-        if (userPrompt) {
-            // Use user-provided prompt
-            prompt = userPrompt;
-        } else if (isRevision && revisionNotes && revisionNotes.length > 0) {
-            // Generic revision prompt
-            prompt = `The user has marked areas with annotations indicating what changes they want. Please revise the image according to these requested changes:
-
-${revisionNotes.map((note: string) => `- ${note}`).join('\n')}
-
-Generate a new version of this image incorporating all the requested changes. Focus closely on the areas indicated by the annotations. Maintain the same overall style and quality, and apply the specific modifications indicated. Do not include any text or annotations in the output image. Do not rotate, scale, or distort the image.`;
-        } else {
-            // Generic initial generation prompt
-            prompt = `Generate or enhance the provided image based on the user's requirements. Maintain the same style, quality, and aspect ratio. Do not include any text or annotations in the output image. Use a clean background.`;
-        }
-
-        // Normalize incoming images so the model always receives base64 bytes
+        // Normalize incoming image so the model always receives base64 bytes
         const normalizedUserImageBase64 = await normalizeImagePayload(imageBase64);
-        const normalizedReferenceBase64 = referenceOriginalImageBase64
-            ? await normalizeImagePayload(referenceOriginalImageBase64)
-            : null;
 
-        // Try image generation model first, fallback to other models if needed
-        let response;
-        let modelName = 'gemini-3-pro-image-preview';
+        // Use a single model for image generation
+        const modelName = 'gemini-3-pro-image-preview';
 
-        // Construct multimodal content with reference images, user image, and prompt
+        // Construct multimodal content with user image and prompt
         const multimodalContent = {
             parts: [
-                ...(normalizedReferenceBase64
-                    ? [
-                          {
-                              inlineData: {
-                                  mimeType: referenceOriginalMimeType || 'image/png',
-                                  data: normalizedReferenceBase64,
-                              },
-                          },
-                      ]
-                    : []),
                 {
                     inlineData: {
                         mimeType: mimeType || 'image/png',
@@ -138,39 +105,11 @@ Generate a new version of this image incorporating all the requested changes. Fo
             ],
         };
 
-        try {
-            // Try image generation model with image input and text prompt
-            response = await ai.models.generateContent({
-                model: modelName,
-                contents: multimodalContent,
-            });
-        } catch (expError: any) {
-            // If image generation model fails, try other models
-            console.warn(
-                'Image generation model failed, trying alternative model:',
-                expError.message,
-            );
-            modelName = 'gemini-2.0-flash-exp';
-
-            try {
-                response = await ai.models.generateContent({
-                    model: 'gemini-2.0-flash-exp',
-                    contents: multimodalContent,
-                });
-            } catch (altError: any) {
-                // Final fallback to stable model
-                console.warn(
-                    'Alternative model failed, trying stable model:',
-                    altError.message,
-                );
-                modelName = 'gemini-1.5-pro';
-
-                response = await ai.models.generateContent({
-                    model: 'gemini-1.5-pro',
-                    contents: multimodalContent,
-                });
-            }
-        }
+        // Generate content with the image generation model
+        const response = await ai.models.generateContent({
+            model: modelName,
+            contents: multimodalContent,
+        });
 
         const candidates = response.candidates;
 

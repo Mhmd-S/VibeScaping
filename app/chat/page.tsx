@@ -1,7 +1,7 @@
-import ChatInterface from '@/app/components/chat/ChatInterface';
+import DrawingBoardChat from '@/app/components/chat/DrawingBoardChat';
 
 const ChatPage = () => {
-    return <ChatInterface />;
+    return <DrawingBoardChat />;
 };
 
 export default ChatPage;

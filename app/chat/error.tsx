@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { AlertCircle } from 'lucide-react';
+import { toast } from '@/components/ui/toast';
 
 interface ErrorProps {
     error: Error & { digest?: string };
@@ -13,6 +14,7 @@ interface ErrorProps {
 const ChatError = ({ error, reset }: ErrorProps) => {
     useEffect(() => {
         console.error('Chat error:', error);
+        toast.error(error.message || 'An unexpected error occurred in the chat interface.');
     }, [error]);
 
     return (
@@ -36,5 +38,12 @@ const ChatError = ({ error, reset }: ErrorProps) => {
 };
 
 export default ChatError;
+
+
+
+
+
+
+
 
 
