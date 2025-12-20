@@ -123,6 +123,189 @@
   --sidebar-ring: oklch(0.553 0.013 58.071);
 }
 
+.customStylesExcalidraw .excalidraw  {
+  --color-primary: oklch(0.85 0.10 190) !important;
+  --color-primary-darker: oklch(0.70 0.12 190) !important;
+  --color-primary-darkest: oklch(0.55 0.15 190) !important;
+  --color-primary-light: oklch(0.90 0.08 190) !important;
+  --color-primary-hover: oklch(0.75 0.11 190) !important;
+  
+  /* Button states */
+  --button-hover-bg: oklch(0.95 0.02 190) !important;
+  --button-active-bg: oklch(0.92 0.03 190) !important;
+  --button-active-border: oklch(0.70 0.12 190) !important;
+  --button-gray-1: oklch(0.96 0.01 190) !important;
+  --button-gray-2: oklch(0.92 0.02 190) !important;
+  --button-gray-3: oklch(0.88 0.02 190) !important;
+  
+  /* Surface colors */
+  --color-surface-high: oklch(0.96 0.02 190) !important;
+  --color-surface-mid: oklch(0.98 0.01 190) !important;
+  --color-surface-low: oklch(0.94 0.02 190) !important;
+  --color-surface-lowest: oklch(1 0 0) !important;
+  --color-on-surface: oklch(0.15 0.01 190) !important;
+  
+  /* Brand colors */
+  --color-brand-hover: oklch(0.75 0.11 190) !important;
+  --color-brand-active: oklch(0.65 0.13 190) !important;
+  
+  /* Border colors */
+  --default-border-color: oklch(0.92 0.02 190) !important;
+  --color-border-outline: oklch(0.60 0.05 190) !important;
+  --color-border-outline-variant: oklch(0.85 0.03 190) !important;
+  
+  /* Icon colors */
+  --icon-fill-color: oklch(0.15 0.01 190) !important;
+  
+  /* Input hover */
+  --input-hover-bg-color: oklch(0.97 0.01 190) !important;
+  
+  /* Surface primary container */
+  --color-surface-primary-container: oklch(0.92 0.05 190) !important;
+  --color-on-primary-container: oklch(0.20 0.10 190) !important;
+  
+  /* Slider colors */
+  --color-slider-track: oklch(0.90 0.08 190) !important;
+  --color-slider-thumb: oklch(0.25 0.01 190) !important;
+  
+  /* Panel and dialog colors */
+  --popup-bg-color: oklch(1 0 0) !important;
+  --popup-secondary-bg-color: oklch(0.96 0.01 190) !important;
+  --popup-text-color: oklch(0.15 0.01 190) !important;
+  --popup-text-inverted-color: oklch(1 0 0) !important;
+  --island-bg-color: oklch(1 0 0) !important;
+  --dialog-border-color: oklch(0.92 0.02 190) !important;
+  
+  /* Button colors for excalidraw-button and dialog buttons */
+  --button-destructive-bg-color: oklch(0.98 0.02 27) !important;
+  --button-destructive-color: oklch(0.50 0.20 27) !important;
+  --button-special-active-bg-color: oklch(0.95 0.05 150) !important;
+}
+
+/* Style excalidraw-button and dialog panel buttons */
+.customStylesExcalidraw .excalidraw .excalidraw-button,
+.customStylesExcalidraw .excalidraw .ttd-dialog-panel-button {
+  background-color: var(--button-gray-1) !important;
+  border-color: var(--default-border-color) !important;
+  color: var(--color-on-surface) !important;
+}
+
+.customStylesExcalidraw .excalidraw .excalidraw-button:hover,
+.customStylesExcalidraw .excalidraw .ttd-dialog-panel-button:hover {
+  background-color: var(--button-hover-bg) !important;
+}
+
+.customStylesExcalidraw .excalidraw .excalidraw-button:active,
+.customStylesExcalidraw .excalidraw .ttd-dialog-panel-button:active,
+.customStylesExcalidraw .excalidraw .excalidraw-button[aria-pressed='true'],
+.customStylesExcalidraw .excalidraw .ttd-dialog-panel-button[aria-pressed='true'] {
+  background-color: var(--button-active-bg) !important;
+  border-color: var(--button-active-border) !important;
+}
+
+/* Style dialog panels */
+.customStylesExcalidraw .excalidraw .ttd-dialog-panel,
+.customStylesExcalidraw .excalidraw [role='dialog'] {
+  background-color: var(--popup-bg-color) !important;
+  border-color: var(--dialog-border-color) !important;
+  color: var(--popup-text-color) !important;
+}
+
+.customStylesExcalidraw .excalidraw.theme--dark {
+  --color-primary: oklch(0.75 0.12 190) !important;
+  --color-primary-darker: oklch(0.80 0.12 190) !important;
+  --color-primary-darkest: oklch(0.85 0.12 190) !important;
+  --color-primary-light: oklch(0.45 0.10 190) !important;
+  --color-primary-hover: oklch(0.78 0.12 190) !important;
+  
+  /* Button states */
+  --button-hover-bg: oklch(0.25 0.02 190) !important;
+  --button-active-bg: oklch(0.28 0.02 190) !important;
+  --button-active-border: oklch(0.75 0.12 190) !important;
+  --button-gray-1: oklch(0.25 0.01 190) !important;
+  --button-gray-2: oklch(0.20 0.01 190) !important;
+  --button-gray-3: oklch(0.18 0.01 190) !important;
+  
+  /* Surface colors */
+  --color-surface-high: oklch(0.22 0.02 190) !important;
+  --color-surface-mid: oklch(0.18 0.01 190) !important;
+  --color-surface-low: oklch(0.15 0.01 190) !important;
+  --color-surface-lowest: oklch(0.12 0.01 190) !important;
+  --color-on-surface: oklch(0.90 0.01 190) !important;
+  
+  /* Brand colors */
+  --color-brand-hover: oklch(0.78 0.12 190) !important;
+  --color-brand-active: oklch(0.85 0.12 190) !important;
+  
+  /* Border colors */
+  --default-border-color: oklch(0.25 0.02 190) !important;
+  --color-border-outline: oklch(0.60 0.05 190) !important;
+  --color-border-outline-variant: oklch(0.30 0.02 190) !important;
+  
+  /* Icon colors */
+  --icon-fill-color: oklch(0.90 0.01 190) !important;
+  
+  /* Input hover */
+  --input-hover-bg-color: oklch(0.20 0.01 190) !important;
+  
+  /* Surface primary container */
+  --color-surface-primary-container: oklch(0.35 0.08 190) !important;
+  --color-on-primary-container: oklch(0.90 0.05 190) !important;
+  
+  /* Slider colors */
+  --color-slider-track: oklch(0.35 0.06 190) !important;
+  --color-slider-thumb: oklch(0.70 0.10 190) !important;
+  
+  /* Panel and dialog colors */
+  --popup-bg-color: oklch(0.22 0.01 190) !important;
+  --popup-secondary-bg-color: oklch(0.18 0.01 190) !important;
+  --popup-text-color: oklch(0.90 0.01 190) !important;
+  --popup-text-inverted-color: oklch(0.20 0.01 190) !important;
+  --island-bg-color: oklch(0.22 0.01 190) !important;
+  --dialog-border-color: oklch(0.30 0.02 190) !important;
+  
+  /* Button colors for excalidraw-button and dialog buttons */
+  --button-destructive-bg-color: oklch(0.25 0.05 27) !important;
+  --button-destructive-color: oklch(0.70 0.15 27) !important;
+  --button-special-active-bg-color: oklch(0.25 0.05 150) !important;
+}
+
+/* Style excalidraw-button and dialog panel buttons - dark mode */
+.customStylesExcalidraw .excalidraw.theme--dark .excalidraw-button,
+.customStylesExcalidraw .excalidraw.theme--dark .ttd-dialog-panel-button {
+  background-color: var(--button-gray-1) !important;
+  border-color: var(--default-border-color) !important;
+  color: var(--color-on-surface) !important;
+}
+
+.customStylesExcalidraw .excalidraw.theme--dark .excalidraw-button:hover,
+.customStylesExcalidraw .excalidraw.theme--dark .ttd-dialog-panel-button:hover {
+  background-color: var(--button-hover-bg) !important;
+}
+
+.customStylesExcalidraw .excalidraw.theme--dark .excalidraw-button:active,
+.customStylesExcalidraw .excalidraw.theme--dark .ttd-dialog-panel-button:active,
+.customStylesExcalidraw .excalidraw.theme--dark .excalidraw-button[aria-pressed='true'],
+.customStylesExcalidraw .excalidraw.theme--dark .ttd-dialog-panel-button[aria-pressed='true'] {
+  background-color: var(--button-active-bg) !important;
+  border-color: var(--button-active-border) !important;
+}
+
+/* Style dialog panels - dark mode */
+.customStylesExcalidraw .excalidraw.theme--dark .ttd-dialog-panel,
+.customStylesExcalidraw .excalidraw.theme--dark [role='dialog'] {
+  background-color: var(--popup-bg-color) !important;
+  border-color: var(--dialog-border-color) !important;
+  color: var(--popup-text-color) !important;
+}
+
+.custom-styles .excalidraw.theme--dark {
+  --color-primary: #d494aa;
+  --color-primary-darker: #d64c7e;
+  --color-primary-darkest: #e86e99;
+  --color-primary-light: #dcbec9;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

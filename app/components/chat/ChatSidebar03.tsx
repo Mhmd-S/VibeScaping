@@ -214,7 +214,7 @@ export function ChatSidebar03({
                                                         }
                                                     }}
                                                     disabled={isSavingThisRename}
-                                                    className="w-full border-b border-border bg-transparent text-sm font-medium outline-none focus:border-primary px-2"
+                                                    className="w-full border-b border-border bg-transparent text-xs font-medium outline-none focus:border-primary px-2"
                                                     autoFocus
                                                 />
                                             ) : (
@@ -226,7 +226,7 @@ export function ChatSidebar03({
                                                     <LayoutDashboard className="size-4" />
                                                     {!isCollapsed && (
                                                         <>
-                                                            <span className="ml-2 flex-1 text-sm font-medium truncate text-left">
+                                                            <span className="ml-2 flex-1 text-xs font-medium truncate text-left">
                                                                 {workspace.name}
                                                             </span>
                                                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">

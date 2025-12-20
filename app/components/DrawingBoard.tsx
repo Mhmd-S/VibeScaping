@@ -375,7 +375,7 @@ export const DrawingBoard = forwardRef<DrawingBoardRef, DrawingBoardProps>(
     }, [excalidrawAPI, workspaceId, hasDrawn, onFirstDraw, loadInitialData, saveToStorage]);
 
     return (
-      <div className="w-full h-[calc(100vh-15px)] shadow-lg border border-border rounded-lg  p-1">
+      <div className="w-full h-[calc(100vh-15px)] shadow-lg border border-border rounded-lg  p-1 customStylesExcalidraw excalidraw">
         <Excalidraw 
           excalidrawAPI={(api) => setExcalidrawAPI(api)}
           onChange={handleExcalidrawChange}
