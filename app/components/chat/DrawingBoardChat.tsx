@@ -42,6 +42,8 @@ const DrawingBoardChat = ({
     "gemini-3-pro-image-preview"
   );
   const [isMounted, setIsMounted] = useState(false);
+  const [hasSelectedElements, setHasSelectedElements] = useState(false);
+  const [sendSelectedOnly, setSendSelectedOnly] = useState(false);
   const drawingBoardRef = useRef<DrawingBoardRef>(null);
 
   // Ensure we only run client-side code after mount
@@ -51,6 +53,23 @@ const DrawingBoardChat = ({
       setWorkspaceId(initialWorkspaceId);
     }
   }, [initialWorkspaceId]);
+
+  // Check for selected elements on mount (fallback if onChange doesn't fire)
+  useEffect(() => {
+    if (!isMounted || !drawingBoardRef.current) return;
+
+    const checkSelectedElements = () => {
+      if (drawingBoardRef.current) {
+        const hasSelected = drawingBoardRef.current?.hasSelectedElements() || false;
+        setHasSelectedElements(hasSelected);
+      }
+    };
+
+    // Check after a short delay to ensure Excalidraw is ready
+    const timeout = setTimeout(checkSelectedElements, 500);
+
+    return () => clearTimeout(timeout);
+  }, [isMounted]);
 
   // Create workspace on first draw if none exists
   const handleFirstDraw = useCallback(() => {
@@ -70,6 +89,14 @@ const DrawingBoardChat = ({
 
   const handleError = useCallback((message: string) => {
     toast.error(message);
+  }, []);
+
+  const handleSelectionChange = useCallback((hasSelected: boolean) => {
+    setHasSelectedElements(hasSelected);
+    // Reset sendSelectedOnly if no elements are selected
+    if (!hasSelected) {
+      setSendSelectedOnly(false);
+    }
   }, []);
 
   const handleSubmit = async (
@@ -97,8 +124,20 @@ const DrawingBoardChat = ({
     setIsLoading(true);
 
     try {
-      // Export current canvas state
-      const canvasExport = await drawingBoardRef.current?.exportCanvasAsImage();
+      // Use user's preference for sending selected only or full canvas
+      let canvasExport;
+
+      if (sendSelectedOnly && hasSelectedElements) {
+        // Export only selected elements
+        canvasExport = await drawingBoardRef.current?.exportSelectedElementsAsImage();
+        if (!canvasExport) {
+          // Fallback to full canvas if selected export fails
+          canvasExport = await drawingBoardRef.current?.exportCanvasAsImage();
+        }
+      } else {
+        // Export full canvas
+        canvasExport = await drawingBoardRef.current?.exportCanvasAsImage();
+      }
 
       if (!canvasExport) {
         console.log("Canvas Export", canvasExport);
@@ -193,6 +232,7 @@ const DrawingBoardChat = ({
         onError={handleError}
         workspaceId={workspaceId}
         onFirstDraw={handleFirstDraw}
+        onSelectionChange={handleSelectionChange}
       />
 
       {isLoading && (
@@ -217,6 +257,9 @@ const DrawingBoardChat = ({
         isLoading={isLoading}
         selectedModel={selectedModel}
         onModelChange={setSelectedModel}
+        hasSelectedElements={hasSelectedElements}
+        sendSelectedOnly={sendSelectedOnly}
+        onSendSelectedOnlyChange={setSendSelectedOnly}
       />
     </div>
   );

@@ -10,23 +10,19 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import {
-  IconMicrophone,
   IconPaperclip,
   IconPlus,
   IconSearch,
   IconSend,
   IconSparkles,
-  IconWaveSine,
+  IconFilter,
+  IconPhoto,
+  IconChevronDown,
+  IconCheck,
 } from "@tabler/icons-react";
 import { useRef, useState, useEffect } from "react";
 
@@ -63,6 +59,9 @@ interface Ai01Props {
   isLoading?: boolean;
   selectedModel?: GeminiImageModel;
   onModelChange?: (model: GeminiImageModel) => void;
+  hasSelectedElements?: boolean;
+  sendSelectedOnly?: boolean;
+  onSendSelectedOnlyChange?: (value: boolean) => void;
 }
 
 export default function Ai01({
@@ -75,6 +74,9 @@ export default function Ai01({
   isLoading = false,
   selectedModel = 'gemini-3-pro-image-preview',
   onModelChange,
+  hasSelectedElements = false,
+  sendSelectedOnly = false,
+  onSendSelectedOnlyChange,
 }: Ai01Props) {
   const [message, setMessage] = useState(value);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -142,7 +144,7 @@ export default function Ai01({
   };
 
   return (
-    <div className="absolute bottom-8 left-[30%] z-30">
+    <div className="absolute bottom-8 left-[30%] z-30 w-[640px]">
       {showTitle && (
         <h1 className="mb-7 mx-auto max-w-2xl text-center text-2xl font-semibold leading-9 text-foreground px-1 text-pretty whitespace-pre-wrap">
           How can I help you today?
@@ -158,32 +160,10 @@ export default function Ai01({
           onChange={handleFileChange}
         />
 
-        <div
-          className={cn(
-            "w-2xl mx-auto dark:bg-muted/50 cursor-text overflow-clip bg-clip-padding p-2.5 shadow-lg border border-border transition-all duration-200 bg-card",
-            {
-              "rounded-3xl grid grid-cols-1 grid-rows-[auto_1fr_auto]":
-                isExpanded,
-              "rounded-[28px] grid grid-cols-[auto_1fr_auto] grid-rows-[auto_1fr_auto]":
-                !isExpanded,
-            }
-          )}
-          style={{
-            gridTemplateAreas: isExpanded
-              ? "'header' 'primary' 'footer'"
-              : "'header header header' 'leading primary trailing' '. footer .'",
-          }}
-        >
-          <div
-            className={cn(
-              "flex min-h-14 items-center overflow-x-hidden px-1.5",
-              {
-                "px-2 py-1 mb-0": isExpanded,
-                "-my-2.5": !isExpanded,
-              }
-            )}
-            style={{ gridArea: "primary" }}
-          >
+        {/* Main input container */}
+        <div className="w-full mx-auto dark:bg-muted/50 cursor-text overflow-clip bg-clip-padding shadow-lg border border-border transition-all duration-200 bg-card rounded-2xl">
+          {/* Text input area */}
+          <div className="flex min-h-14 items-center overflow-x-hidden px-4 py-3">
             <div className="flex-1 overflow-auto max-h-30">
               <Textarea
                 ref={textareaRef}
@@ -198,112 +178,116 @@ export default function Ai01({
             </div>
           </div>
 
-          <div
-            className={cn("flex", { hidden: isExpanded })}
-            style={{ gridArea: "leading" }}
-          >
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 rounded-full hover:bg-accent outline-none ring-0"
+          {/* Bottom controls row - v0 style */}
+          <div className="flex items-center justify-between px-3 pb-3 pt-1 border-t border-border/50">
+            {/* Left side controls */}
+            <div className="flex items-center gap-1">
+              {/* <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-md hover:bg-accent outline-none ring-0"
+                  >
+                    <IconPlus className="size-4 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="max-w-xs rounded-2xl p-1.5"
                 >
-                  <IconPlus className="size-6 text-muted-foreground" />
-                </Button>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent
-                align="start"
-                className="max-w-xs rounded-2xl p-1.5"
-              >
-                <DropdownMenuGroup className="space-y-1">
-                  <DropdownMenuItem
-                    className="rounded-[calc(1rem-6px)]"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <IconPaperclip size={20} className="opacity-60" />
-                    Add photos & files
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          <div
-            className="flex items-center gap-2"
-            style={{ gridArea: isExpanded ? "footer" : "trailing" }}
-          >
-            <div className="ms-auto flex items-center gap-1.5">
-              {isExpanded && (
-                <Select value={currentModel} onValueChange={handleModelChange}>
-                  <SelectTrigger className="h-9 w-fit min-w-[180px] text-xs">
-                    <IconSparkles className="size-4 mr-2" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {GEMINI_IMAGE_MODELS.map((model) => (
-                      <SelectItem key={model.value} value={model.value}>
-                        {model.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              {!isExpanded && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-9 px-3 rounded-full hover:bg-accent outline-none ring-0 gap-2"
-                      title="Change model"
+                  <DropdownMenuGroup className="space-y-1">
+                    <DropdownMenuItem
+                      className="rounded-[calc(1rem-6px)]"
+                      onClick={() => fileInputRef.current?.click()}
                     >
-                      <IconSparkles className="size-4 text-muted-foreground" />
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {GEMINI_IMAGE_MODELS.find((m) => m.value === currentModel)?.label || currentModel}
-                      </span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="end"
-                    className="max-w-xs rounded-2xl p-1.5"
-                  >
-                    <DropdownMenuGroup className="space-y-1">
-                      {GEMINI_IMAGE_MODELS.map((model) => (
-                        <DropdownMenuItem
-                          key={model.value}
-                          className={cn(
-                            "rounded-[calc(1rem-6px)]",
-                            currentModel === model.value && "bg-accent"
-                          )}
-                          onClick={() => handleModelChange(model.value)}
-                        >
-                          <div className="flex flex-col">
-                            <span className="font-medium">{model.label}</span>
-                            {model.description && (
-                              <span className="text-xs text-muted-foreground">
-                                {model.description}
-                              </span>
-                            )}
-                          </div>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
+                      <IconPaperclip size={20} className="opacity-60" />
+                      Add photos & files
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu> */}
+
               <Button
-                type="submit"
+                type="button"
+                variant="ghost"
                 size="icon"
-                className="h-9 w-9 rounded-full"
-                disabled={isLoading}
+                className="h-8 w-8 rounded-md hover:bg-accent outline-none ring-0"
+                title="Upload image"
+                onClick={() => fileInputRef.current?.click()}
               >
-                <IconSend className="size-5" />
+                <IconPhoto className="size-4 text-muted-foreground" />
               </Button>
+
+              {/* Model selector */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 rounded-md hover:bg-accent outline-none ring-0 gap-1.5"
+                  >
+                    <IconSparkles className="size-3.5 text-muted-foreground" />
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {GEMINI_IMAGE_MODELS.find((m) => m.value === currentModel)?.label || currentModel}
+                    </span>
+                    <IconChevronDown className="size-3 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="max-w-xs rounded-2xl p-1.5"
+                >
+                  <DropdownMenuGroup className="space-y-1">
+                    {GEMINI_IMAGE_MODELS.map((model) => (
+                      <DropdownMenuItem
+                        key={model.value}
+                        className={cn(
+                          "rounded-[calc(1rem-6px)]",
+                          currentModel === model.value && "bg-accent"
+                        )}
+                        onClick={() => handleModelChange(model.value)}
+                      >
+                        <div className="flex flex-col">
+                          <span className="font-medium">{model.label}</span>
+                          {model.description && (
+                            <span className="text-xs text-muted-foreground">
+                              {model.description}
+                            </span>
+                          )}
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Selected elements toggle - only show when elements are selected */}
+              {hasSelectedElements && onSendSelectedOnlyChange && (
+                <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-muted/50 ml-1">
+                  <Switch
+                    checked={sendSelectedOnly}
+                    onCheckedChange={onSendSelectedOnlyChange}
+                    className="h-4 w-7"
+                  />
+                  <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+                    Selected only
+                  </span>
+                </div>
+              )}
             </div>
+
+            {/* Right side - submit button */}
+            <Button
+              type="submit"
+              size="icon"
+              className="h-8 w-8 rounded-md"
+              disabled={isLoading}
+            >
+              <IconSend className="size-4" />
+            </Button>
           </div>
         </div>
       </form>

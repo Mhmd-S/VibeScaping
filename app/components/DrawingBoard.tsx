@@ -9,373 +9,177 @@ import type {
 } from "@excalidraw/excalidraw/types";
 import { GeneratedImage } from "../types/annotation";
 
-const publicImageBaseUrl =
-  process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL ||
-  process.env.CLOUDFLARE_R2_PUBLIC_URL;
-
-const toPublicImageUrl = (originalUrl?: string | null) => {
-  if (!originalUrl) return undefined;
-  if (!publicImageBaseUrl) return originalUrl;
-
-  try {
-    const parsed = new URL(originalUrl);
-    const segments = parsed.pathname.split("/").filter(Boolean);
-
-    if (segments.length === 0) return originalUrl;
-
-    const keyPath =
-      segments[0] === "projects"
-        ? segments.join("/")
-        : segments.slice(1).join("/") || segments[0];
-    const normalizedBase = publicImageBaseUrl.replace(/\/$/, "");
-
-    return `${normalizedBase}/${keyPath}`;
-  } catch (error) {
-    console.warn(
-      "Failed to build public image URL, falling back to original",
-      error
-    );
-    return originalUrl;
-  }
-};
-
-const resolveImageSource = (image?: GeneratedImage | null): string => {
-  if (!image?.image) return "";
-
-  const raw = image.image;
-
-  if (raw.startsWith("data:")) {
-    return raw;
-  }
-
-  try {
-    const parsed = new URL(raw);
-    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-      const publicUrl = toPublicImageUrl(raw) || raw;
-      try {
-        const publicParsed = new URL(publicUrl);
-        if (
-          publicParsed.hostname.includes("r2.dev") ||
-          publicParsed.hostname.includes("cloudflarestorage.com")
-        ) {
-          return `/api/proxy-image?url=${encodeURIComponent(publicUrl)}`;
-        }
-      } catch {
-        if (
-          parsed.hostname.includes("r2.dev") ||
-          parsed.hostname.includes("cloudflarestorage.com")
-        ) {
-          return `/api/proxy-image?url=${encodeURIComponent(publicUrl)}`;
-        }
-      }
-      return publicUrl;
-    }
-  } catch {
-    // Not a URL; treat as base64 below.
-  }
-
-  const mimeType = image.mimeType || "image/png";
-  return `data:${mimeType};base64,${raw}`;
-};
-
-export interface DrawingBoardProps {
-  initialImage?: GeneratedImage | null;
-  onImageUpdate?: (image: GeneratedImage) => void;
-  onError?: (message: string) => void;
-  workspaceId?: string;
-  onFirstDraw?: () => void;
-}
-
 export interface DrawingBoardRef {
-  exportCanvasAsImage: () => Promise<{
-    image: string;
-    mimeType: string;
-  } | null>;
+  exportCanvasAsImage: () => Promise<{ image: string; mimeType: string } | null>;
+  exportSelectedElementsAsImage: () => Promise<{ image: string; mimeType: string } | null>;
+  hasSelectedElements: () => boolean;
   setImage: (image: GeneratedImage) => void;
 }
 
-export const DrawingBoard = forwardRef<DrawingBoardRef, DrawingBoardProps>(
-  ({ initialImage, onError, workspaceId, onFirstDraw }, ref) => {
-    const [excalidrawAPI, setExcalidrawAPI] =
-      useState<ExcalidrawImperativeAPI | null>(null);
+export const DrawingBoard = forwardRef<any, any>(
+  ({ initialImage, onError, workspaceId, onFirstDraw, onSelectionChange }, ref) => {
+    const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
     const [hasDrawn, setHasDrawn] = useState(false);
+
+    const getStorageKey = useCallback(() => (workspaceId ? `excalidraw_workspace_${workspaceId}` : null), [workspaceId]);
+
+    // Helper to extract IDs from the selectedElementIds (which can be an Object or a Set)
+    const getSelectedIds = (selectedElementIds: any): string[] => {
+      if (!selectedElementIds) return [];
+      if (selectedElementIds instanceof Set) return Array.from(selectedElementIds);
+      if (typeof selectedElementIds === 'object') {
+        return Object.keys(selectedElementIds).filter(id => selectedElementIds[id]);
+      }
+      return [];
+    };
 
     const loadImage = useCallback(async (image: GeneratedImage) => {
       if (!excalidrawAPI) return;
 
       try {
-        const imageSrc = resolveImageSource(image);
-        if (!imageSrc) return;
-
-        let dataURL: string;
-        const mimeType = (image.mimeType || "image/png") as BinaryFileData["mimeType"];
-
-        if (imageSrc.startsWith("data:")) {
-          dataURL = imageSrc;
-        } else {
-          const response = await fetch(imageSrc);
-          const blob = await response.blob();
-          const reader = new FileReader();
-          dataURL = await new Promise<string>((resolve, reject) => {
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-        }
-
-        // Load image to get natural dimensions
+        const dataURL = image.image;
         const img = new Image();
-        await new Promise<void>((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = reject;
+        await new Promise<void>((res, rej) => {
+          img.onload = () => res();
+          img.onerror = rej;
           img.src = dataURL;
         });
 
-        const naturalWidth = img.naturalWidth;
-        const naturalHeight = img.naturalHeight;
+        const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        const elementId = `el_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
 
-        // Get existing elements and files first
-        const existingElements = excalidrawAPI.getSceneElements();
-        const existingFiles = excalidrawAPI.getFiles();
-        
-        // Remove existing image elements and their associated files
-        const nonImageElements = existingElements.filter(
-          (el: any) => el.type !== 'image'
-        );
-        
-        // Collect file IDs from existing image elements to clean them up
-        const oldImageFileIds = new Set<string>();
-        existingElements.forEach((el: any) => {
-          if (el.type === 'image' && el.fileId) {
-            oldImageFileIds.add(el.fileId);
-          }
-        });
+        excalidrawAPI.addFiles([{
+          id: fileId,
+          dataURL,
+          mimeType: (image.mimeType || "image/png") as any,
+        }]);
 
-        // Generate unique IDs for file and element
-        // This function is only called from client-side callbacks, so Date.now() is safe
-        if (typeof window === 'undefined') {
-          throw new Error('loadImage can only be called on the client');
-        }
-        const timestamp = Date.now();
-        const randomStr = Math.random().toString(36).substr(2, 9);
-        const fileId = `image-file-${timestamp}-${randomStr}`;
-        const elementId = `image-element-${timestamp}-${randomStr}`;
+        const appState = excalidrawAPI.getAppState();
+        const centerX = (appState.width / 2 - img.naturalWidth / 2) / appState.zoom.value - appState.scrollX;
+        const centerY = (appState.height / 2 - img.naturalHeight / 2) / appState.zoom.value - appState.scrollY;
 
-        // Add the new image data to Excalidraw's internal file storage
-        await excalidrawAPI.addFiles([
-          {
-            id: fileId,
-            dataURL,
-            mimeType,
-          } as BinaryFileData,
-        ]);
-
-        // Create the image element with all required properties
-        // Using proper Excalidraw image element structure
-        // Generate random values once to ensure consistency
-        const versionNonce = Math.floor(Math.random() * 2 ** 32);
-        const seed = Math.floor(Math.random() * 2 ** 32);
-        
-        const imageElement = {
-          type: 'image',
-          version: 2,
-          versionNonce,
+        // FIXED: Complete property set to prevent resizing TypeErrors
+        const imageElement: any = {
+          type: "image",
           id: elementId,
-          x: 100,
-          y: 100,
-          width: naturalWidth,
-          height: naturalHeight,
-          angle: 0,
-          strokeColor: '#000000',
-          backgroundColor: 'transparent',
-          fillStyle: 'solid',
+          status: "saved",
+          fileId: fileId,
+          x: centerX,
+          y: centerY,
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+          strokeColor: "transparent",
+          backgroundColor: "transparent",
+          fillStyle: "solid",
           strokeWidth: 1,
-          strokeStyle: 'solid',
-          roughness: 1,
+          strokeStyle: "solid",
+          roughness: 0,
           opacity: 100,
+          angle: 0,
+          version: 1,
+          versionNonce: Math.floor(Math.random() * 2 ** 32),
+          seed: Math.floor(Math.random() * 2 ** 32),
           groupIds: [],
           frameId: null,
           roundness: null,
-          seed,
-          fileId: fileId,
+          isDeleted: false,
+          boundElements: [], // MUST be an empty array, not null
+          updated: Date.now(),
+          link: null,
           locked: false,
-        } as any;
+        };
 
-        // Wait a bit to ensure files are properly registered in Excalidraw
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Get fresh elements after file registration
         const currentElements = excalidrawAPI.getSceneElements();
-        const currentNonImageElements = currentElements.filter(
-          (el: any) => el.type !== 'image'
-        );
-        
-        // Update scene with new image element and all non-image elements
-        // Only update elements, let Excalidraw handle its own appState
-        requestAnimationFrame(() => {
-          excalidrawAPI.updateScene({
-            elements: [imageElement, ...currentNonImageElements],
-          });
+        excalidrawAPI.updateScene({
+          elements: [...currentElements, imageElement],
+          commitToHistory: true,
         });
+
       } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Failed to load image";
-        onError?.(errorMessage);
+        onError?.("Failed to insert image");
       }
     }, [excalidrawAPI, onError]);
 
-    useEffect(() => {
-      if (excalidrawAPI && initialImage) {
-        loadImage(initialImage);
-      }
-    }, [excalidrawAPI, loadImage]);
-
-    // Expose methods via ref
-    useImperativeHandle(
-      ref,
-      () => ({
-        exportCanvasAsImage: async () => {
-          console.log("Excalidraw API", excalidrawAPI);
-          if (!excalidrawAPI) return null;
-
-          console.log("Exporting canvas as image");
-
-          try {
-            const elements = excalidrawAPI.getSceneElements();
-            const appState = excalidrawAPI.getAppState();
-            const files = excalidrawAPI.getFiles();
-
-            console.log("Elements", elements);
-            console.log("App State", appState);
-            console.log("Files", files);
-
-            // Export to canvas - use appState as-is from Excalidraw
-            const canvas = await exportToCanvas({
-              elements,
-              appState,
-              files,
-              getDimensions: (width: number, height: number) => ({
-                width,
-                height,
-                scale: 1,
-              }),
-            });
-
-            console.log("Canvas", canvas);
-
-            const dataUrl = canvas.toDataURL("image/png");
-            const base64 = dataUrl.split(",")[1];
-            const firstFile = Object.values(files)[0];
-            const mimeType = firstFile?.mimeType || "image/png";
-
-            return {
-              image: base64,
-              mimeType,
-            };
-          } catch (err) {
-            console.log("The err", err);
-            return null;
-          }
-        },
-        setImage: (image: GeneratedImage) => {
-          loadImage(image);
-        },
-      }),
-      [excalidrawAPI, loadImage, onError]
-    );
-
-    // Handle Excalidraw onChange to detect first draw
     const handleExcalidrawChange = useCallback((elements: readonly any[], appState: any, files: any) => {
-      // Check if there are any non-image elements (user has drawn something)
-      const hasNonImageElements = elements.some((el: any) => el.type !== 'image');
-      
-      if (hasNonImageElements && !hasDrawn && onFirstDraw) {
-        setHasDrawn(true);
-        onFirstDraw();
-      }
-    }, [hasDrawn, onFirstDraw]);
-
-    // Get workspace-specific storage key
-    const getStorageKey = useCallback(() => {
-      if (workspaceId) {
-        return `excalidraw_workspace_${workspaceId}`;
-      }
-      return undefined; // Use default Excalidraw storage
-    }, [workspaceId]);
-
-    // Load initial data from workspace-specific storage
-    const loadInitialData = useCallback(() => {
-      if (!workspaceId || typeof window === 'undefined') return undefined;
-      
-      try {
-        const storageKey = getStorageKey();
-        if (!storageKey) return undefined;
-        
-        const saved = localStorage.getItem(storageKey);
-        if (saved) {
-          return JSON.parse(saved);
+      // 1. Detect if something was drawn
+      if (!hasDrawn && onFirstDraw) {
+        const hasContent = elements.some(el => !el.isDeleted && el.type !== 'image');
+        if (hasContent) {
+          setHasDrawn(true);
+          onFirstDraw();
         }
-      } catch (error) {
-        console.warn('Failed to load workspace data:', error);
       }
-      return undefined;
-    }, [workspaceId, getStorageKey]);
 
-    // Save to workspace-specific storage
-    const saveToStorage = useCallback((elements: readonly any[], appState: any, files: any) => {
-      if (!workspaceId || typeof window === 'undefined') return;
-      
-      try {
-        const storageKey = getStorageKey();
-        if (!storageKey) return;
+      // 2. Notify selection changes (handling both Set and Object structures)
+      if (onSelectionChange) {
+        const selectedIds = getSelectedIds(appState.selectedElementIds);
+        onSelectionChange(selectedIds.length > 0);
+      }
+
+      // 3. Save to local storage
+      const key = getStorageKey();
+      if (key) {
+        try {
+          localStorage.setItem(key, JSON.stringify({ elements, files }));
+        } catch (e) {
+          console.warn("Local storage full or inaccessible", e);
+        }
+      }
+    }, [hasDrawn, onFirstDraw, onSelectionChange, getStorageKey]);
+
+    useImperativeHandle(ref, () => ({
+      exportCanvasAsImage: async () => {
+        if (!excalidrawAPI) return null;
+        const elements = excalidrawAPI.getSceneElements().filter(el => !el.isDeleted);
+        const canvas = await exportToCanvas({
+          elements,
+          appState: excalidrawAPI.getAppState(),
+          files: excalidrawAPI.getFiles(),
+        });
+        return { image: canvas.toDataURL("image/png").split(",")[1], mimeType: "image/png" };
+      },
+      exportSelectedElementsAsImage: async () => {
+        if (!excalidrawAPI) return null;
+        const appState = excalidrawAPI.getAppState();
+        const selectedIds = getSelectedIds(appState.selectedElementIds);
+        const elements = excalidrawAPI.getSceneElements().filter(el => selectedIds.includes(el.id) && !el.isDeleted);
         
-        const data = {
+        if (elements.length === 0) return null;
+
+        const canvas = await exportToCanvas({
           elements,
           appState,
-          files,
-        };
-        localStorage.setItem(storageKey, JSON.stringify(data));
-      } catch (error) {
-        console.warn('Failed to save workspace data:', error);
-      }
-    }, [workspaceId, getStorageKey]);
+          files: excalidrawAPI.getFiles(),
+        });
+        return { image: canvas.toDataURL("image/png").split(",")[1], mimeType: "image/png" };
+      },
+      hasSelectedElements: () => {
+        if (!excalidrawAPI) return false;
+        return getSelectedIds(excalidrawAPI.getAppState().selectedElementIds).length > 0;
+      },
+      setImage: (image: GeneratedImage) => loadImage(image),
+    }), [excalidrawAPI, loadImage]);
 
-    // Set up change handler when API is ready
     useEffect(() => {
       if (!excalidrawAPI) return;
-
-      // Load initial data - only restore elements, let Excalidraw handle appState
-      const initialData = loadInitialData();
-      if (initialData && initialData.elements) {
-        excalidrawAPI.updateScene({
-          elements: initialData.elements,
-        });
-      }
-
-      // Set up periodic save (Excalidraw doesn't have a direct onChange prop, so we'll use a workaround)
-      const interval = setInterval(() => {
-        if (excalidrawAPI) {
-          const elements = excalidrawAPI.getSceneElements();
-          const appState = excalidrawAPI.getAppState();
-          const files = excalidrawAPI.getFiles();
-          
-          // Check for first draw
-          const hasNonImageElements = elements.some((el: any) => el.type !== 'image');
-          if (hasNonImageElements && !hasDrawn && onFirstDraw) {
-            setHasDrawn(true);
-            onFirstDraw();
+      const key = getStorageKey();
+      if (key) {
+        const saved = localStorage.getItem(key);
+        if (saved) {
+          try {
+            const { elements, files } = JSON.parse(saved);
+            if (files) excalidrawAPI.addFiles(Object.values(files));
+            excalidrawAPI.updateScene({ elements });
+          } catch (e) {
+            console.error("Restore failed", e);
           }
-          
-          // Save to storage
-          saveToStorage(elements, appState, files);
         }
-      }, 1000); // Save every second
-
-      return () => clearInterval(interval);
-    }, [excalidrawAPI, workspaceId, hasDrawn, onFirstDraw, loadInitialData, saveToStorage]);
+      }
+      if (initialImage) loadImage(initialImage);
+    }, [excalidrawAPI]);
 
     return (
-      <div className="w-full h-[calc(100vh-15px)] shadow-lg border border-border rounded-lg  p-1 customStylesExcalidraw excalidraw">
+      <div className="w-full h-[calc(100vh-15px)] shadow-lg border border-border rounded-lg p-1 customStylesExcalidraw">
         <Excalidraw 
           excalidrawAPI={(api) => setExcalidrawAPI(api)}
           onChange={handleExcalidrawChange}
