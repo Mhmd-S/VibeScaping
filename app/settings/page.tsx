@@ -8,10 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { getApiKey, setApiKey, deleteApiKey, hasApiKey } from '@/app/utils/apiKey';
 
 const SettingsPage = () => {
     const router = useRouter();
-    const [apiKey, setApiKey] = useState('');
+    const [apiKeyInput, setApiKeyInput] = useState('');
     const [maskedApiKey, setMaskedApiKey] = useState('');
     const [showApiKey, setShowApiKey] = useState(false);
     const [hasExistingKey, setHasExistingKey] = useState(false);
@@ -25,20 +26,22 @@ const SettingsPage = () => {
         loadApiKey();
     }, []);
 
-    const loadApiKey = async () => {
+    const loadApiKey = () => {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch('/api/settings/api-key');
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to load API key');
-            }
-
-            if (data.hasKey) {
-                setMaskedApiKey(data.apiKey);
-                setHasExistingKey(true);
+            if (hasApiKey()) {
+                const key = getApiKey();
+                if (key) {
+                    // Mask the key: show first 8 and last 4 characters
+                    const masked = key.length > 12
+                        ? `${key.substring(0, 8)}${'*'.repeat(key.length - 12)}${key.substring(key.length - 4)}`
+                        : '***';
+                    setMaskedApiKey(masked);
+                    setHasExistingKey(true);
+                }
+            } else {
+                setHasExistingKey(false);
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load API key');
@@ -47,8 +50,8 @@ const SettingsPage = () => {
         }
     };
 
-    const handleSave = async () => {
-        if (!apiKey.trim()) {
+    const handleSave = () => {
+        if (!apiKeyInput.trim()) {
             setError('API key is required');
             return;
         }
@@ -58,23 +61,10 @@ const SettingsPage = () => {
         setSuccess(null);
 
         try {
-            const response = await fetch('/api/settings/api-key', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ apiKey: apiKey.trim() }),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to save API key');
-            }
-
+            setApiKey(apiKeyInput.trim());
             setSuccess('API key saved successfully');
-            setApiKey('');
-            await loadApiKey();
+            setApiKeyInput('');
+            loadApiKey();
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to save API key');
         } finally {
@@ -82,7 +72,7 @@ const SettingsPage = () => {
         }
     };
 
-    const handleDelete = async () => {
+    const handleDelete = () => {
         if (!confirm('Are you sure you want to delete your API key?')) {
             return;
         }
@@ -92,16 +82,7 @@ const SettingsPage = () => {
         setSuccess(null);
 
         try {
-            const response = await fetch('/api/settings/api-key', {
-                method: 'DELETE',
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to delete API key');
-            }
-
+            deleteApiKey();
             setSuccess('API key deleted successfully');
             setHasExistingKey(false);
             setMaskedApiKey('');
@@ -188,8 +169,8 @@ const SettingsPage = () => {
                         <Input
                             id="api-key"
                             type="password"
-                            value={apiKey}
-                            onChange={(e) => setApiKey(e.target.value)}
+                            value={apiKeyInput}
+                            onChange={(e) => setApiKeyInput(e.target.value)}
                             placeholder="Enter your Gemini API key"
                             className="mt-2 font-mono"
                         />
@@ -210,7 +191,7 @@ const SettingsPage = () => {
                         <Button
                             type="button"
                             onClick={handleSave}
-                            disabled={isSaving || !apiKey.trim()}
+                            disabled={isSaving || !apiKeyInput.trim()}
                         >
                             <Save className="mr-2 h-4 w-4" />
                             {isSaving ? 'Saving...' : hasExistingKey ? 'Update API Key' : 'Save API Key'}

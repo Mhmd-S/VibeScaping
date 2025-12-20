@@ -1,36 +1,46 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { Workspace } from '@/app/types/workspace';
 import { ChatSidebar03 } from '@/app/components/chat/ChatSidebar03';
 import { toast } from '@/components/ui/toast';
+import {
+    getAllWorkspaces,
+    createWorkspace as createLocalWorkspace,
+    updateWorkspace,
+    deleteWorkspace as deleteLocalWorkspace,
+    getWorkspace,
+    toWorkspaceType,
+} from '@/app/utils/localWorkspace';
 
 interface ChatLayoutClientProps {
     children: React.ReactNode;
-    initialWorkspaces: Workspace[];
     userName: string;
     userEmail: string;
 }
 
-const ChatLayoutClient = ({ children, initialWorkspaces, userName, userEmail }: ChatLayoutClientProps) => {
+const ChatLayoutClient = ({ children, userName, userEmail }: ChatLayoutClientProps) => {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { data: session } = useSession();
-    const [workspaces, setWorkspaces] = useState<Workspace[]>(initialWorkspaces);
+    const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+
+    useEffect(() => {
+        loadWorkspaces();
+    }, []);
+
+    const loadWorkspaces = () => {
+        const localWorkspaces = getAllWorkspaces();
+        setWorkspaces(localWorkspaces.map(toWorkspaceType));
+    };
 
     const refreshWorkspaces = async () => {
         try {
-            const response = await fetch('/api/workspaces', { cache: 'no-store' });
-            const body = await response.json();
-
-            if (!response.ok) {
-                throw new Error(body?.error || 'Unable to load workspaces');
-            }
-
-            setWorkspaces(body.workspaces ?? []);
+            loadWorkspaces();
             toast.success('Workspaces refreshed');
         } catch (fetchError) {
             const errorMessage = fetchError instanceof Error ? fetchError.message : 'Unable to load workspaces';
@@ -39,7 +49,7 @@ const ChatLayoutClient = ({ children, initialWorkspaces, userName, userEmail }: 
     };
 
     const handleOpenWorkspace = (workspaceId: string) => {
-        router.push(`/editor?workspaceId=${workspaceId}`);
+        router.push(`/chat?workspaceId=${workspaceId}`);
     };
 
     const handleRename = async (workspaceId: string, name: string) => {
@@ -50,28 +60,16 @@ const ChatLayoutClient = ({ children, initialWorkspaces, userName, userEmail }: 
         }
 
         try {
-            const response = await fetch(`/api/workspaces/${workspaceId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ name: name.trim() }),
-            });
+            const updated = updateWorkspace(workspaceId, { name: name.trim() });
 
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result?.error || 'Could not rename workspace');
+            if (!updated) {
+                throw new Error('Could not rename workspace');
             }
 
             setWorkspaces((current) =>
                 current.map((workspace) =>
                     workspace.id === workspaceId
-                        ? {
-                              ...workspace,
-                              name: result.workspace.name,
-                              updatedAt: result.workspace.updatedAt,
-                          }
+                        ? toWorkspaceType(updated)
                         : workspace,
                 ),
             );
@@ -85,14 +83,21 @@ const ChatLayoutClient = ({ children, initialWorkspaces, userName, userEmail }: 
 
     const handleDelete = async (workspaceId: string) => {
         try {
-            const response = await fetch(`/api/workspaces/${workspaceId}`, { method: 'DELETE' });
-            const result = await response.json().catch(() => null);
+            const success = deleteLocalWorkspace(workspaceId);
 
-            if (!response.ok) {
-                throw new Error(result?.error || 'Could not delete workspace');
+            if (!success) {
+                throw new Error('Could not delete workspace');
             }
 
             setWorkspaces((current) => current.filter((workspace) => workspace.id !== workspaceId));
+            
+            // Check if the deleted workspace is the currently active one
+            const currentWorkspaceId = searchParams.get('workspaceId');
+            if (currentWorkspaceId === workspaceId) {
+                // Navigate to chat route without workspaceId (replace to avoid adding to history)
+                router.replace('/chat');
+            }
+            
             toast.success('Workspace deleted successfully');
         } catch (deleteError) {
             const errorMessage = deleteError instanceof Error ? deleteError.message : 'Could not delete workspace';
@@ -104,23 +109,10 @@ const ChatLayoutClient = ({ children, initialWorkspaces, userName, userEmail }: 
     const createWorkspace = async () => {
         const name = `Workspace ${new Date().toLocaleString()}`;
         try {
-            const response = await fetch('/api/workspaces', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ name }),
-            });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result?.error || 'Could not create workspace');
-            }
-
-            await refreshWorkspaces();
+            const workspace = createLocalWorkspace(name);
+            loadWorkspaces();
             toast.success('Workspace created successfully');
-            router.push(`/editor?workspaceId=${result.workspace.id}`);
+            router.push(`/chat?workspaceId=${workspace.id}`);
         } catch (creationError) {
             const errorMessage = creationError instanceof Error ? creationError.message : 'Could not create workspace';
             toast.error(errorMessage);

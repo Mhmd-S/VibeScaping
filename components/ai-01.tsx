@@ -98,7 +98,7 @@ export default function Ai01({
   };
 
   return (
-    <div className="w-full">
+    <div className="absolute bottom-8 left-[30%] z-50">
       {showTitle && (
         <h1 className="mb-7 mx-auto max-w-2xl text-center text-2xl font-semibold leading-9 text-foreground px-1 text-pretty whitespace-pre-wrap">
           How can I help you today?
@@ -116,7 +116,7 @@ export default function Ai01({
 
         <div
           className={cn(
-            "w-full max-w-2xl mx-auto bg-transparent dark:bg-muted/50 cursor-text overflow-clip bg-clip-padding p-2.5 shadow-lg border border-border transition-all duration-200",
+            "w-2xl mx-auto dark:bg-muted/50 cursor-text overflow-clip bg-clip-padding p-2.5 shadow-lg border border-border transition-all duration-200 bg-card",
             {
               "rounded-3xl grid grid-cols-1 grid-rows-[auto_1fr_auto]":
                 isExpanded,
@@ -140,7 +140,7 @@ export default function Ai01({
             )}
             style={{ gridArea: "primary" }}
           >
-            <div className="flex-1 overflow-auto max-h-52">
+            <div className="flex-1 overflow-auto max-h-30">
               <Textarea
                 ref={textareaRef}
                 value={message}
@@ -182,22 +182,6 @@ export default function Ai01({
                     <IconPaperclip size={20} className="opacity-60" />
                     Add photos & files
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="rounded-[calc(1rem-6px)]"
-                    onClick={() => {}}
-                  >
-                    <div className="flex items-center gap-2">
-                      <IconSparkles size={20} className="opacity-60" />
-                      Agent mode
-                    </div>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="rounded-[calc(1rem-6px)]"
-                    onClick={() => {}}
-                  >
-                    <IconSearch size={20} className="opacity-60" />
-                    Deep Research
-                  </DropdownMenuItem>
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -208,25 +192,6 @@ export default function Ai01({
             style={{ gridArea: isExpanded ? "footer" : "trailing" }}
           >
             <div className="ms-auto flex items-center gap-1.5">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 rounded-full hover:bg-accent"
-              >
-                <IconMicrophone className="size-5 text-muted-foreground" />
-              </Button>
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 rounded-full hover:bg-accent relative"
-              >
-                <IconWaveSine className="size-5 text-muted-foreground" />
-              </Button>
-
-              {message.trim() && (
                 <Button
                   type="submit"
                   size="icon"
@@ -235,7 +200,6 @@ export default function Ai01({
                 >
                   <IconSend className="size-5" />
                 </Button>
-              )}
             </div>
           </div>
         </div>

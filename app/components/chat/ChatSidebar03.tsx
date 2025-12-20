@@ -149,7 +149,6 @@ export function ChatSidebar03({
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.8 }}
                     >
-                        <NotificationsPopover notifications={sampleNotifications} />
                         <SidebarTrigger />
                     </motion.div>
                 </SidebarHeader>
@@ -157,24 +156,7 @@ export function ChatSidebar03({
                 <SidebarContent className="gap-4 px-2 py-4">
                     <SidebarMenu>
                         <SidebarMenuItem>
-                            <SidebarMenuButton
-                                tooltip="Chat"
-                                asChild
-                                className="w-full"
-                            >
-                                <a
-                                    href="/chat"
-                                    className={cn(
-                                        'flex items-center rounded-lg px-2 transition-colors text-muted-foreground hover:bg-sidebar-muted hover:text-foreground',
-                                        isCollapsed && 'justify-center'
-                                    )}
-                                >
-                                    <MessageSquare className="size-4" />
-                                    {!isCollapsed && (
-                                        <span className="ml-2 text-sm font-medium">Chat</span>
-                                    )}
-                                </a>
-                            </SidebarMenuButton>
+
                         </SidebarMenuItem>
                     </SidebarMenu>
 
