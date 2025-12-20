@@ -92,7 +92,6 @@ export interface DrawingBoardRef {
     mimeType: string;
   } | null>;
   setImage: (image: GeneratedImage) => void;
-  clearAnnotations: () => void;
 }
 
 export const DrawingBoard = forwardRef<DrawingBoardRef, DrawingBoardProps>(
@@ -153,8 +152,14 @@ export const DrawingBoard = forwardRef<DrawingBoardRef, DrawingBoardProps>(
         });
 
         // Generate unique IDs for file and element
-        const fileId = `image-file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const elementId = `image-element-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        // This function is only called from client-side callbacks, so Date.now() is safe
+        if (typeof window === 'undefined') {
+          throw new Error('loadImage can only be called on the client');
+        }
+        const timestamp = Date.now();
+        const randomStr = Math.random().toString(36).substr(2, 9);
+        const fileId = `image-file-${timestamp}-${randomStr}`;
+        const elementId = `image-element-${timestamp}-${randomStr}`;
 
         // Add the new image data to Excalidraw's internal file storage
         await excalidrawAPI.addFiles([
@@ -167,10 +172,14 @@ export const DrawingBoard = forwardRef<DrawingBoardRef, DrawingBoardProps>(
 
         // Create the image element with all required properties
         // Using proper Excalidraw image element structure
+        // Generate random values once to ensure consistency
+        const versionNonce = Math.floor(Math.random() * 2 ** 32);
+        const seed = Math.floor(Math.random() * 2 ** 32);
+        
         const imageElement = {
           type: 'image',
           version: 2,
-          versionNonce: Math.floor(Math.random() * 2 ** 32),
+          versionNonce,
           id: elementId,
           x: 100,
           y: 100,
@@ -187,7 +196,7 @@ export const DrawingBoard = forwardRef<DrawingBoardRef, DrawingBoardProps>(
           groupIds: [],
           frameId: null,
           roundness: null,
-          seed: Math.floor(Math.random() * 2 ** 32),
+          seed,
           fileId: fileId,
           locked: false,
         } as any;
@@ -195,22 +204,17 @@ export const DrawingBoard = forwardRef<DrawingBoardRef, DrawingBoardProps>(
         // Wait a bit to ensure files are properly registered in Excalidraw
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Get fresh state after file registration
+        // Get fresh elements after file registration
         const currentElements = excalidrawAPI.getSceneElements();
         const currentNonImageElements = currentElements.filter(
           (el: any) => el.type !== 'image'
         );
-        const appState = excalidrawAPI.getAppState();
         
         // Update scene with new image element and all non-image elements
-        // Using requestAnimationFrame to ensure Excalidraw is ready
+        // Only update elements, let Excalidraw handle its own appState
         requestAnimationFrame(() => {
           excalidrawAPI.updateScene({
             elements: [imageElement, ...currentNonImageElements],
-            appState: {
-              ...appState,
-              selectedElementIds: {},
-            },
           });
         });
       } catch (err) {
@@ -245,7 +249,7 @@ export const DrawingBoard = forwardRef<DrawingBoardRef, DrawingBoardProps>(
             console.log("App State", appState);
             console.log("Files", files);
 
-            // Export to canvas
+            // Export to canvas - use appState as-is from Excalidraw
             const canvas = await exportToCanvas({
               elements,
               appState,
@@ -275,45 +279,6 @@ export const DrawingBoard = forwardRef<DrawingBoardRef, DrawingBoardProps>(
         },
         setImage: (image: GeneratedImage) => {
           loadImage(image);
-        },
-        clearAnnotations: () => {
-          if (!excalidrawAPI) return;
-
-          try {
-            const elements = excalidrawAPI.getSceneElements();
-            
-            // Keep only the image element, remove all other elements
-            const imageElements = elements.filter(
-              (el: any) => el.type === "image"
-            );
-            
-            const appState = excalidrawAPI.getAppState();
-            
-            // Update scene - passing only image elements will remove others
-            // Excalidraw handles the element lifecycle internally
-            excalidrawAPI.updateScene({
-              elements: imageElements,
-              appState: {
-                ...appState,
-                selectedElementIds: {},
-              },
-            });
-          } catch (err) {
-            console.warn('Failed to clear annotations:', err);
-            // Fallback: try clearing everything if filtering fails
-            try {
-              const appState = excalidrawAPI.getAppState();
-              excalidrawAPI.updateScene({
-                elements: [],
-                appState: {
-                  ...appState,
-                  selectedElementIds: {},
-                },
-              });
-            } catch (fallbackErr) {
-              console.error('Fallback clear failed:', fallbackErr);
-            }
-          }
         },
       }),
       [excalidrawAPI, loadImage, onError]
@@ -379,12 +344,11 @@ export const DrawingBoard = forwardRef<DrawingBoardRef, DrawingBoardProps>(
     useEffect(() => {
       if (!excalidrawAPI) return;
 
-      // Load initial data
+      // Load initial data - only restore elements, let Excalidraw handle appState
       const initialData = loadInitialData();
-      if (initialData) {
+      if (initialData && initialData.elements) {
         excalidrawAPI.updateScene({
-          elements: initialData.elements || [],
-          appState: initialData.appState || {},
+          elements: initialData.elements,
         });
       }
 

@@ -10,6 +10,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
@@ -23,14 +30,39 @@ import {
 } from "@tabler/icons-react";
 import { useRef, useState, useEffect } from "react";
 
+export type GeminiImageModel = 
+  | 'gemini-3-pro-image-preview'
+  | 'gemini-2.5-flash-image'
+  | 'gemini-2.0-flash-preview-image-generation';
+
+export const GEMINI_IMAGE_MODELS: Array<{ value: GeminiImageModel; label: string; description?: string }> = [
+  { 
+    value: 'gemini-3-pro-image-preview', 
+    label: 'Gemini 3 Pro Image',
+    description: 'Latest preview model with advanced image generation'
+  },
+  { 
+    value: 'gemini-2.5-flash-image', 
+    label: 'Gemini 2.5 Flash Image',
+    description: 'Fast and efficient image generation model'
+  },
+  { 
+    value: 'gemini-2.0-flash-preview-image-generation', 
+    label: 'Gemini 2.0 Flash Preview',
+    description: 'Preview model for image generation'
+  },
+];
+
 interface Ai01Props {
   value?: string;
   onChange?: (value: string) => void;
-  onSubmit?: (value: string) => void;
+  onSubmit?: (value: string, model?: GeminiImageModel) => void;
   onFileSelect?: (files: File[]) => void;
   placeholder?: string;
   showTitle?: boolean;
   isLoading?: boolean;
+  selectedModel?: GeminiImageModel;
+  onModelChange?: (model: GeminiImageModel) => void;
 }
 
 export default function Ai01({
@@ -41,9 +73,12 @@ export default function Ai01({
   placeholder = "Ask anything",
   showTitle = false,
   isLoading = false,
+  selectedModel = 'gemini-3-pro-image-preview',
+  onModelChange,
 }: Ai01Props) {
   const [message, setMessage] = useState(value);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [currentModel, setCurrentModel] = useState<GeminiImageModel>(selectedModel);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -51,11 +86,15 @@ export default function Ai01({
     setMessage(value);
   }, [value]);
 
+  useEffect(() => {
+    setCurrentModel(selectedModel);
+  }, [selectedModel]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (message.trim() && !isLoading) {
-      onSubmit?.(message.trim());
+      onSubmit?.(message.trim(), currentModel);
       if (!onChange) {
         setMessage("");
       }
@@ -65,6 +104,11 @@ export default function Ai01({
         textareaRef.current.style.height = "auto";
       }
     }
+  };
+
+  const handleModelChange = (newModel: GeminiImageModel) => {
+    setCurrentModel(newModel);
+    onModelChange?.(newModel);
   };
 
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -98,7 +142,7 @@ export default function Ai01({
   };
 
   return (
-    <div className="absolute bottom-8 left-[30%] z-50">
+    <div className="absolute bottom-8 left-[30%] z-30">
       {showTitle && (
         <h1 className="mb-7 mx-auto max-w-2xl text-center text-2xl font-semibold leading-9 text-foreground px-1 text-pretty whitespace-pre-wrap">
           How can I help you today?
@@ -192,14 +236,73 @@ export default function Ai01({
             style={{ gridArea: isExpanded ? "footer" : "trailing" }}
           >
             <div className="ms-auto flex items-center gap-1.5">
-                <Button
-                  type="submit"
-                  size="icon"
-                  className="h-9 w-9 rounded-full"
-                  disabled={isLoading}
-                >
-                  <IconSend className="size-5" />
-                </Button>
+              {isExpanded && (
+                <Select value={currentModel} onValueChange={handleModelChange}>
+                  <SelectTrigger className="h-9 w-fit min-w-[180px] text-xs">
+                    <IconSparkles className="size-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GEMINI_IMAGE_MODELS.map((model) => (
+                      <SelectItem key={model.value} value={model.value}>
+                        {model.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {!isExpanded && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 px-3 rounded-full hover:bg-accent outline-none ring-0 gap-2"
+                      title="Change model"
+                    >
+                      <IconSparkles className="size-4 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {GEMINI_IMAGE_MODELS.find((m) => m.value === currentModel)?.label || currentModel}
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="max-w-xs rounded-2xl p-1.5"
+                  >
+                    <DropdownMenuGroup className="space-y-1">
+                      {GEMINI_IMAGE_MODELS.map((model) => (
+                        <DropdownMenuItem
+                          key={model.value}
+                          className={cn(
+                            "rounded-[calc(1rem-6px)]",
+                            currentModel === model.value && "bg-accent"
+                          )}
+                          onClick={() => handleModelChange(model.value)}
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-medium">{model.label}</span>
+                            {model.description && (
+                              <span className="text-xs text-muted-foreground">
+                                {model.description}
+                              </span>
+                            )}
+                          </div>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              <Button
+                type="submit"
+                size="icon"
+                className="h-9 w-9 rounded-full"
+                disabled={isLoading}
+              >
+                <IconSend className="size-5" />
+              </Button>
             </div>
           </div>
         </div>

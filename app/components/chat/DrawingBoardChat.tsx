@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { DrawingBoardRef } from "../DrawingBoard";
 import { GeneratedImage } from "@/app/types/annotation";
-import Ai01 from "@/components/ai-01";
+import Ai01, { type GeminiImageModel } from "@/components/ai-01";
 import { toast } from "@/components/ui/toast";
 import { Spinner } from "@/components/ui/spinner";
 import { createWorkspace, updateLastOpened } from "@/app/utils/localWorkspace";
@@ -27,17 +27,34 @@ interface DrawingBoardChatProps {
   workspaceId?: string;
 }
 
-const DrawingBoardChat = ({ workspaceId: initialWorkspaceId }: DrawingBoardChatProps) => {
+const DrawingBoardChat = ({
+  workspaceId: initialWorkspaceId,
+}: DrawingBoardChatProps) => {
   const router = useRouter();
-  const [workspaceId, setWorkspaceId] = useState<string | undefined>(initialWorkspaceId || undefined);
+  const [workspaceId, setWorkspaceId] = useState<string | undefined>(
+    typeof window !== 'undefined' ? (initialWorkspaceId || undefined) : undefined
+  );
   const [hasCreatedWorkspace, setHasCreatedWorkspace] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [currentImage, setCurrentImage] = useState<GeneratedImage | null>(null);
+  const [selectedModel, setSelectedModel] = useState<GeminiImageModel>(
+    "gemini-3-pro-image-preview"
+  );
+  const [isMounted, setIsMounted] = useState(false);
   const drawingBoardRef = useRef<DrawingBoardRef>(null);
+
+  // Ensure we only run client-side code after mount
+  useEffect(() => {
+    setIsMounted(true);
+    if (initialWorkspaceId && typeof window !== 'undefined') {
+      setWorkspaceId(initialWorkspaceId);
+    }
+  }, [initialWorkspaceId]);
 
   // Create workspace on first draw if none exists
   const handleFirstDraw = useCallback(() => {
+    if (typeof window === 'undefined') return;
     if (hasCreatedWorkspace || workspaceId) return;
 
     const newWorkspace = createWorkspace();
@@ -55,7 +72,11 @@ const DrawingBoardChat = ({ workspaceId: initialWorkspaceId }: DrawingBoardChatP
     toast.error(message);
   }, []);
 
-  const handleSubmit = async (promptValue: string) => {
+  const handleSubmit = async (
+    promptValue: string,
+    model?: GeminiImageModel
+  ) => {
+    if (typeof window === 'undefined') return;
     if (!promptValue.trim() || isLoading) return;
 
     // Check for API key
@@ -71,6 +92,7 @@ const DrawingBoardChat = ({ workspaceId: initialWorkspaceId }: DrawingBoardChatP
     }
 
     const currentPrompt = promptValue.trim();
+    const modelToUse = model || selectedModel;
     setPrompt("");
     setIsLoading(true);
 
@@ -88,10 +110,13 @@ const DrawingBoardChat = ({ workspaceId: initialWorkspaceId }: DrawingBoardChatP
         prompt: currentPrompt,
         imageBase64: canvasExport.image,
         mimeType: canvasExport.mimeType,
+        model: modelToUse,
       });
 
       if (!result.success) {
-        throw new Error(result.error || result.details || "Failed to process request");
+        throw new Error(
+          result.error || result.details || "Failed to process request"
+        );
       }
 
       // If we got an image back, update the drawing board
@@ -124,6 +149,8 @@ const DrawingBoardChat = ({ workspaceId: initialWorkspaceId }: DrawingBoardChatP
   };
 
   const handleFileSelect = async (files: File[]) => {
+    if (typeof window === 'undefined') return;
+    
     const imageFiles = files.filter((file) => file.type.startsWith("image/"));
     if (imageFiles.length === 0) return;
 
@@ -147,40 +174,50 @@ const DrawingBoardChat = ({ workspaceId: initialWorkspaceId }: DrawingBoardChatP
     }
   };
 
+  // Don't render until mounted to avoid SSR issues
+  if (!isMounted) {
+    return (
+      <div className="relative py-2 pr-2 h-full flex items-center justify-center">
+        <Spinner className="size-8 text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="relative py-2 pr-2 h-full">
       {/* Drawing Board */}
-      <div className="relative">
-        <ExcalidrawWrapper
-          ref={drawingBoardRef}
-          initialImage={currentImage}
-          onImageUpdate={handleImageUpdate}
-          onError={handleError}
-          workspaceId={workspaceId}
-          onFirstDraw={handleFirstDraw}
-        />
-        {isLoading && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
-            <div className="flex flex-col items-center gap-4">
-              <Spinner className="size-8 text-primary" />
-              <p className="text-sm text-muted-foreground">
-                Generating your image...
-              </p>
-            </div>
+      <ExcalidrawWrapper
+        ref={drawingBoardRef}
+        initialImage={currentImage}
+        onImageUpdate={handleImageUpdate}
+        onError={handleError}
+        workspaceId={workspaceId}
+        onFirstDraw={handleFirstDraw}
+      />
+
+      {isLoading && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
+          <div className="flex flex-col items-center gap-4">
+            <Spinner className="size-8 text-primary" />
+            <p className="text-sm text-muted-foreground">
+              Generating your image...
+            </p>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Chat Input */}
-        <Ai01
-          value={prompt}
-          onChange={setPrompt}
-          onSubmit={handleSubmit}
-          onFileSelect={handleFileSelect}
-          placeholder="Describe what you want to create or modify..."
-          showTitle={false}
-          isLoading={isLoading}
-        />
+      <Ai01
+        value={prompt}
+        onChange={setPrompt}
+        onSubmit={handleSubmit}
+        onFileSelect={handleFileSelect}
+        placeholder="Describe what you want to create or modify..."
+        showTitle={false}
+        isLoading={isLoading}
+        selectedModel={selectedModel}
+        onModelChange={setSelectedModel}
+      />
     </div>
   );
 };

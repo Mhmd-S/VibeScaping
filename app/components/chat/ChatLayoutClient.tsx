@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useSession } from 'next-auth/react';
 
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { Workspace } from '@/app/types/workspace';
@@ -26,7 +25,6 @@ interface ChatLayoutClientProps {
 const ChatLayoutClient = ({ children, userName, userEmail }: ChatLayoutClientProps) => {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { data: session } = useSession();
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
 
     useEffect(() => {

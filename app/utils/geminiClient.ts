@@ -2,6 +2,7 @@
 
 import { GoogleGenAI } from '@google/genai';
 import { getApiKey } from './apiKey';
+import type { GeminiImageModel } from '@/components/ai-01';
 
 const normalizeImagePayload = (value: string): string => {
     if (!value) return '';
@@ -20,6 +21,7 @@ export interface GenerateImageRequest {
     imageBase64: string;
     mimeType: string;
     prompt: string;
+    model?: GeminiImageModel;
 }
 
 export interface GenerateImageResponse {
@@ -57,8 +59,8 @@ export const generateImage = async (
         // Normalize incoming image so the model always receives base64 bytes
         const normalizedUserImageBase64 = normalizeImagePayload(request.imageBase64);
 
-        // Use a single model for image generation
-        const modelName = 'gemini-3-pro-image-preview';
+        // Use selected model or default to gemini-3-pro-image-preview
+        const modelName = request.model || 'gemini-3-pro-image-preview';
 
         // Construct multimodal content with user image and prompt
         const multimodalContent = {

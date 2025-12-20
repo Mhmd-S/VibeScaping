@@ -14,6 +14,10 @@ export interface LocalWorkspace {
 }
 
 const generateWorkspaceId = (): string => {
+    if (typeof window === 'undefined') {
+        // Return a placeholder during SSR - will be regenerated on client
+        return `workspace_placeholder_${Math.random().toString(36).substr(2, 9)}`;
+    }
     return `workspace_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 };
 
@@ -35,12 +39,28 @@ export const getWorkspace = (id: string): LocalWorkspace | null => {
 };
 
 export const createWorkspace = (name?: string): LocalWorkspace => {
+    if (typeof window === 'undefined') {
+        // Return a placeholder during SSR - should not be called on server
+        const now = new Date().toISOString();
+        return {
+            id: 'placeholder',
+            name: name || 'Workspace',
+            description: null,
+            createdAt: now,
+            updatedAt: now,
+            lastOpenedAt: now,
+        };
+    }
+    
     const workspaces = getAllWorkspaces();
     const now = new Date().toISOString();
     
+    // Use ISO string instead of toLocaleString to avoid locale differences
+    const defaultName = name || `Workspace ${new Date().toISOString().split('T')[0]}`;
+    
     const workspace: LocalWorkspace = {
         id: generateWorkspaceId(),
-        name: name || `Workspace ${new Date().toLocaleString()}`,
+        name: defaultName,
         description: null,
         createdAt: now,
         updatedAt: now,

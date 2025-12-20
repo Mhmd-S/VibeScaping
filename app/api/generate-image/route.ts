@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { decrypt } from '@/lib/encryption';
 import { prisma } from '@/lib/prisma';
+import type { GeminiImageModel } from '@/components/ai-01';
 
 const normalizeImagePayload = async (value: string): Promise<string> => {
     if (!value) return '';
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest) {
             imageBase64,
             mimeType,
             prompt: userPrompt,
+            model: userModel,
         } = await request.json();
 
         if (!imageBase64) {
@@ -89,8 +91,8 @@ export async function POST(request: NextRequest) {
         // Normalize incoming image so the model always receives base64 bytes
         const normalizedUserImageBase64 = await normalizeImagePayload(imageBase64);
 
-        // Use a single model for image generation
-        const modelName = 'gemini-3-pro-image-preview';
+        // Use selected model or default to gemini-3-pro-image-preview
+        const modelName: GeminiImageModel = userModel || 'gemini-3-pro-image-preview';
 
         // Construct multimodal content with user image and prompt
         const multimodalContent = {
