@@ -119,7 +119,7 @@ const ChatLayoutClientInner = ({ children, userName, userEmail }: ChatLayoutClie
 
     return (
         <SidebarProvider>
-            <div className="relative flex h-screen w-full">
+            <div className="relative flex h-screen w-full overflow-hidden">
                 <ChatSidebar03
                     workspaces={workspaces}
                     userName={userName}
@@ -130,8 +130,8 @@ const ChatLayoutClientInner = ({ children, userName, userEmail }: ChatLayoutClie
                     onWorkspaceDelete={handleDelete}
                     onRefreshWorkspaces={refreshWorkspaces}
                 />
-                <SidebarInset className="flex flex-col">
-                    <main className="flex-1 overflow-hidden">
+                <SidebarInset className="flex flex-col w-full h-full">
+                    <main className="flex-1 overflow-hidden w-full h-full">
                         {children}
                     </main>
                 </SidebarInset>

@@ -226,7 +226,7 @@ export function ChatSidebar03({
                                 <Button
                                     type="button"
                                     onClick={onWorkspaceCreate}
-                                    className="w-full mb-4"
+                                    className="w-full mb-4 min-h-[44px] md:min-h-0"
                                     size="sm"
                                 >
                                     <Plus className="mr-2 h-4 w-4" />
@@ -301,42 +301,42 @@ export function ChatSidebar03({
                                                                 'flex gap-1 transition-opacity ml-2',
                                                                 isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                                                             )}>
-                                                                <div
-                                                                    role="button"
-                                                                    tabIndex={0}
-                                                                    className="h-6 w-6 hover:text-primary flex items-center justify-center rounded-md hover:bg-accent cursor-pointer transition-colors"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        beginRename(workspace);
-                                                                    }}
-                                                                    onKeyDown={(e) => {
-                                                                        if (e.key === 'Enter' || e.key === ' ') {
-                                                                            e.preventDefault();
-                                                                            e.stopPropagation();
-                                                                            beginRename(workspace);
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    <Pencil className="h-3 w-3" />
-                                                                </div>
-                                                                <div
-                                                                    role="button"
-                                                                    tabIndex={0}
-                                                                    className="h-6 w-6 hover:text-destructive flex items-center justify-center rounded-md hover:bg-accent cursor-pointer transition-colors"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setPendingDelete({ id: workspace.id, name: workspace.name });
-                                                                    }}
-                                                                    onKeyDown={(e) => {
-                                                                        if (e.key === 'Enter' || e.key === ' ') {
-                                                                            e.preventDefault();
-                                                                            e.stopPropagation();
-                                                                            setPendingDelete({ id: workspace.id, name: workspace.name });
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    <Trash2 className="h-3 w-3" />
-                                                                </div>
+                                <div
+                                    role="button"
+                                    tabIndex={0}
+                                    className="h-8 w-8 md:h-6 md:w-6 hover:text-primary flex items-center justify-center rounded-md hover:bg-accent cursor-pointer transition-colors touch-manipulation"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        beginRename(workspace);
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            beginRename(workspace);
+                                        }
+                                    }}
+                                >
+                                    <Pencil className="h-4 w-4 md:h-3 md:w-3" />
+                                </div>
+                                <div
+                                    role="button"
+                                    tabIndex={0}
+                                    className="h-8 w-8 md:h-6 md:w-6 hover:text-destructive flex items-center justify-center rounded-md hover:bg-accent cursor-pointer transition-colors touch-manipulation"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setPendingDelete({ id: workspace.id, name: workspace.name });
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setPendingDelete({ id: workspace.id, name: workspace.name });
+                                        }
+                                    }}
+                                >
+                                    <Trash2 className="h-4 w-4 md:h-3 md:w-3" />
+                                </div>
                                                             </div>
                                                         </>
                                                     )}
@@ -355,7 +355,7 @@ export function ChatSidebar03({
                         <Button
                             type="button"
                             variant="ghost"
-                            className="w-full justify-start"
+                            className="w-full justify-start min-h-[44px] md:min-h-0"
                             onClick={() => router.push('/settings')}
                         >
                             <Settings className="mr-2 h-4 w-4" />

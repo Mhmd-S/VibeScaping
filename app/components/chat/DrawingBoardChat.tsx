@@ -7,10 +7,13 @@ import { GeneratedImage } from "@/app/types/annotation";
 import Ai01, { type GeminiImageModel } from "@/components/ai-01";
 import { toast } from "@/components/ui/toast";
 import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { createWorkspace, updateLastOpened } from "@/app/utils/localWorkspace";
 import { generateImage } from "@/app/utils/geminiClient";
 import { getApiKey } from "@/app/utils/apiKey";
 import { getWorkspaceData, saveWorkspaceData } from "@/app/utils/db";
+import { IconMessage } from "@tabler/icons-react";
 
 import dynamic from "next/dynamic";
 
@@ -44,6 +47,8 @@ const DrawingBoardChat = ({
   const [isMounted, setIsMounted] = useState(false);
   const [hasSelectedElements, setHasSelectedElements] = useState(false);
   const [sendSelectedOnly, setSendSelectedOnly] = useState(false);
+  const [isChatVisible, setIsChatVisible] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const drawingBoardRef = useRef<DrawingBoardRef>(null);
 
   // Ensure we only run client-side code after mount
@@ -52,6 +57,14 @@ const DrawingBoardChat = ({
     if (initialWorkspaceId && typeof window !== 'undefined') {
       setWorkspaceId(initialWorkspaceId);
     }
+    
+    // Check if mobile on mount and resize
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, [initialWorkspaceId]);
 
   // Check for selected elements on mount (fallback if onChange doesn't fire)
@@ -236,7 +249,12 @@ const DrawingBoardChat = ({
   }
 
   return (
-    <div className="relative py-2 pr-2 h-full">
+    <div className="relative h-full w-full md:py-2 md:px-2 md:pr-2">
+      {/* Mobile Menu Button - Top Left */}
+      <div className="absolute top-20 left-2 z-50 md:hidden">
+        <SidebarTrigger className="h-10 w-10 shadow-lg" />
+      </div>
+
       {/* Drawing Board */}
       <ExcalidrawWrapper
         ref={drawingBoardRef}
@@ -273,7 +291,21 @@ const DrawingBoardChat = ({
         hasSelectedElements={hasSelectedElements}
         sendSelectedOnly={sendSelectedOnly}
         onSendSelectedOnlyChange={setSendSelectedOnly}
+        isVisible={isMobile ? isChatVisible : true}
+        onClose={isMobile ? () => setIsChatVisible(false) : undefined}
       />
+
+      {/* Floating toggle button - shown when chat is hidden on mobile */}
+      {isMobile && !isChatVisible && (
+        <Button
+          type="button"
+          size="icon"
+          className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full shadow-lg"
+          onClick={() => setIsChatVisible(true)}
+        >
+          <IconMessage className="size-6" />
+        </Button>
+      )}
     </div>
   );
 };

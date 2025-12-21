@@ -51,6 +51,8 @@ interface Ai01Props {
   hasSelectedElements?: boolean;
   sendSelectedOnly?: boolean;
   onSendSelectedOnlyChange?: (value: boolean) => void;
+  isVisible?: boolean;
+  onClose?: () => void;
 }
 
 export default function Ai01({
@@ -66,6 +68,8 @@ export default function Ai01({
   hasSelectedElements = false,
   sendSelectedOnly = false,
   onSendSelectedOnlyChange,
+  isVisible = true,
+  onClose,
 }: Ai01Props) {
   const [message, setMessage] = useState(value);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -132,8 +136,12 @@ export default function Ai01({
     }
   };
 
+  if (!isVisible) {
+    return null;
+  }
+
   return (
-    <div className="absolute bottom-8 left-[30%] z-30 w-[640px]">
+    <div className="absolute bottom-18 left-4 right-4 md:bottom-8 md:left-[30%] md:right-auto md:w-[640px] z-50">
       {showTitle && (
         <h1 className="mb-7 mx-auto max-w-2xl text-center text-2xl font-semibold leading-9 text-foreground px-1 text-pretty whitespace-pre-wrap">
           How can I help you today?
@@ -261,8 +269,11 @@ export default function Ai01({
                     onCheckedChange={onSendSelectedOnlyChange}
                     className="h-4 w-7"
                   />
-                  <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+                  <span className="text-xs font-medium text-muted-foreground whitespace-nowrap hidden sm:inline">
                     Apply to selected only
+                  </span>
+                  <span className="text-xs font-medium text-muted-foreground whitespace-nowrap sm:hidden">
+                    Selected
                   </span>
                 </div>
               )}
