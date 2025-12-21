@@ -16,16 +16,14 @@ import {
     Pencil,
     Trash2,
     LayoutDashboard,
-    MessageSquare,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Logo } from '@/components/sidebar-03/logo';
-import { NotificationsPopover } from '@/components/sidebar-03/nav-notifications';
 import { Button } from '@/components/ui/button';
 import { Workspace } from '@/app/types/workspace';
 import { DeleteProject } from '@/app/components/dialogs/DeleteProject';
-
+import { deleteWorkspaceData } from '@/app/utils/db';
 import {
     SidebarMenu,
     SidebarMenuButton,
@@ -55,16 +53,15 @@ const sampleNotifications = [
 
 export function ChatSidebar03({
     workspaces,
-    userName,
-    userEmail,
     onWorkspaceCreate,
     onWorkspaceOpen,
     onWorkspaceRename,
     onWorkspaceDelete,
-    onRefreshWorkspaces,
 }: ChatSidebar03Props) {
     const { state } = useSidebar();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const activeWorkspaceId = searchParams.get('workspaceId');
     const isCollapsed = state === 'collapsed';
     const [renamingId, setRenamingId] = useState<string | null>(null);
     const [renameValue, setRenameValue] = useState('');
@@ -107,13 +104,22 @@ export function ChatSidebar03({
         setDeletingId(workspaceId);
 
         try {
+            // 1. Delete Metadata (localStorage) via the prop function
             await onWorkspaceDelete(workspaceId);
-            if (renamingId === workspaceId) {
-                cancelRename();
+            
+            // 2. Delete Heavy Data (IndexedDB)
+            await deleteWorkspaceData(workspaceId);
+
+            if (renamingId === workspaceId) cancelRename();
+            
+            // 3. Redirect if we just deleted the active workspace
+            if (activeWorkspaceId === workspaceId) {
+                router.push('/chat');
             }
+            
             setPendingDelete(null);
         } catch (error) {
-            // Error handling is done in parent
+            console.error('Failed to fully delete workspace', error);
         } finally {
             setDeletingId(null);
         }
@@ -134,7 +140,7 @@ export function ChatSidebar03({
                         <Logo className="h-8 w-8" />
                         {!isCollapsed && (
                             <span className="font-semibold text-black dark:text-white">
-                                Landscaping
+                                Vibescaping
                             </span>
                         )}
                     </a>
@@ -166,11 +172,11 @@ export function ChatSidebar03({
                                 <Button
                                     type="button"
                                     onClick={onWorkspaceCreate}
-                                    className="w-full"
+                                    className="w-full mb-4"
                                     size="sm"
                                 >
                                     <Plus className="mr-2 h-4 w-4" />
-                                    New Workspace
+                                    New Project
                                 </Button>
                             </div>
                         )}
@@ -194,6 +200,7 @@ export function ChatSidebar03({
                                 {workspaces.map((workspace) => {
                                     const isRenaming = renamingId === workspace.id;
                                     const isSavingThisRename = isRenaming && savingRename;
+                                    const isActive = activeWorkspaceId === workspace.id;
 
                                     return (
                                         <SidebarMenuItem key={workspace.id}>
@@ -221,63 +228,61 @@ export function ChatSidebar03({
                                                 <SidebarMenuButton
                                                     tooltip={workspace.name}
                                                     onClick={() => !isRenaming && onWorkspaceOpen(workspace.id)}
-                                                    className="group relative w-full"
+                                                    isActive={isActive}
+                                                    className={cn(
+                                                        'group relative w-full transition-colors',
+                                                        isActive && 'bg-primary/10 text-primary font-bold hover:bg-primary/15'
+                                                    )}
                                                 >
-                                                    <LayoutDashboard className="size-4" />
+                                                    <LayoutDashboard className={cn(
+                                                        'size-4',
+                                                        isActive ? 'text-primary' : 'text-muted-foreground'
+                                                    )} />
                                                     {!isCollapsed && (
                                                         <>
-                                                            <span className="ml-2 flex-1 text-xs font-medium truncate text-left">
+                                                            <span className="ml-2 flex-1 text-xs truncate text-left">
                                                                 {workspace.name}
                                                             </span>
-                                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
-                                                                <Button
-                                                                    asChild
-                                                                    variant="ghost"
-                                                                    size="icon-sm"
-                                                                    className="h-6 w-6"
-                                                                >
-                                                                    <div
-                                                                        role="button"
-                                                                        tabIndex={0}
-                                                                        onClick={(e) => {
+                                                            <div className={cn(
+                                                                'flex gap-1 transition-opacity ml-2',
+                                                                isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                                                            )}>
+                                                                <div
+                                                                    role="button"
+                                                                    tabIndex={0}
+                                                                    className="h-6 w-6 hover:text-primary flex items-center justify-center rounded-md hover:bg-accent cursor-pointer transition-colors"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        beginRename(workspace);
+                                                                    }}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter' || e.key === ' ') {
+                                                                            e.preventDefault();
                                                                             e.stopPropagation();
                                                                             beginRename(workspace);
-                                                                        }}
-                                                                        onKeyDown={(e) => {
-                                                                            if (e.key === 'Enter' || e.key === ' ') {
-                                                                                e.preventDefault();
-                                                                                e.stopPropagation();
-                                                                                beginRename(workspace);
-                                                                            }
-                                                                        }}
-                                                                    >
-                                                                        <Pencil className="h-3 w-3" />
-                                                                    </div>
-                                                                </Button>
-                                                                <Button
-                                                                    asChild
-                                                                    variant="ghost"
-                                                                    size="icon-sm"
-                                                                    className="h-6 w-6"
+                                                                        }
+                                                                    }}
                                                                 >
-                                                                    <div
-                                                                        role="button"
-                                                                        tabIndex={0}
-                                                                        onClick={(e) => {
+                                                                    <Pencil className="h-3 w-3" />
+                                                                </div>
+                                                                <div
+                                                                    role="button"
+                                                                    tabIndex={0}
+                                                                    className="h-6 w-6 hover:text-destructive flex items-center justify-center rounded-md hover:bg-accent cursor-pointer transition-colors"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setPendingDelete({ id: workspace.id, name: workspace.name });
+                                                                    }}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter' || e.key === ' ') {
+                                                                            e.preventDefault();
                                                                             e.stopPropagation();
                                                                             setPendingDelete({ id: workspace.id, name: workspace.name });
-                                                                        }}
-                                                                        onKeyDown={(e) => {
-                                                                            if (e.key === 'Enter' || e.key === ' ') {
-                                                                                e.preventDefault();
-                                                                                e.stopPropagation();
-                                                                                setPendingDelete({ id: workspace.id, name: workspace.name });
-                                                                            }
-                                                                        }}
-                                                                    >
-                                                                        <Trash2 className="h-3 w-3" />
-                                                                    </div>
-                                                                </Button>
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                </div>
                                                             </div>
                                                         </>
                                                     )}

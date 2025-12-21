@@ -273,7 +273,7 @@ export default function Ai01({
                     className="h-4 w-7"
                   />
                   <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-                    Selected only
+                    Apply to selected only
                   </span>
                 </div>
               )}

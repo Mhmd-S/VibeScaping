@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { createWorkspace, updateLastOpened } from "@/app/utils/localWorkspace";
 import { generateImage } from "@/app/utils/geminiClient";
 import { getApiKey } from "@/app/utils/apiKey";
+import { getWorkspaceData, saveWorkspaceData } from "@/app/utils/db";
 
 import dynamic from "next/dynamic";
 
@@ -72,14 +73,25 @@ const DrawingBoardChat = ({
   }, [isMounted]);
 
   // Create workspace on first draw if none exists
-  const handleFirstDraw = useCallback(() => {
+  const handleFirstDraw = useCallback(async () => {
     if (typeof window === 'undefined') return;
     if (hasCreatedWorkspace || workspaceId) return;
 
     const newWorkspace = createWorkspace();
+    
+    // Migrate from temp to real ID in IndexedDB
+    try {
+      const tempData = await getWorkspaceData('anonymous_temp');
+      if (tempData) {
+        await saveWorkspaceData(newWorkspace.id, tempData);
+      }
+    } catch (error) {
+      console.error('Failed to migrate workspace data', error);
+    }
+
     setWorkspaceId(newWorkspace.id);
     setHasCreatedWorkspace(true);
-    router.push(`/chat?workspaceId=${newWorkspace.id}`);
+    router.replace(`/chat?workspaceId=${newWorkspace.id}`);
     updateLastOpened(newWorkspace.id);
   }, [hasCreatedWorkspace, workspaceId, router]);
 
