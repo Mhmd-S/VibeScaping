@@ -76,6 +76,7 @@ export const DrawingBoard = forwardRef<any, any>(
           y: centerY,
           width: img.naturalWidth,
           height: img.naturalHeight,
+          scale: [1, 1], // Scale factor [scaleX, scaleY]
           strokeColor: "transparent",
           backgroundColor: "transparent",
           fillStyle: "solid",

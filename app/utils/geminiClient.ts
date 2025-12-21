@@ -17,6 +17,13 @@ const normalizeImagePayload = (value: string): string => {
     return value;
 };
 
+/**
+ * Checks if the mimeType supports transparency (alpha channel)
+ */
+const supportsTransparency = (mimeType: string): boolean => {
+    return mimeType === 'image/png' || mimeType === 'image/webp';
+};
+
 export interface GenerateImageRequest {
     imageBase64: string;
     mimeType: string;
@@ -53,8 +60,16 @@ export const generateImage = async (
             apiKey,
         });
 
+        // Check if input image supports transparency
+        const inputSupportsTransparency = supportsTransparency(request.mimeType || 'image/png');
+        
         // Use user-provided prompt or default generic prompt
-        const prompt = request.prompt || 'Generate or enhance the provided image based on the user\'s requirements. Maintain the same style, quality, and aspect ratio. Do not include any text or annotations in the output image. Use a clean background.';
+        // If input supports transparency, preserve it; otherwise use clean background
+        const defaultPrompt = inputSupportsTransparency
+            ? 'Generate or enhance the provided image based on the user\'s requirements. Maintain the same style, quality, and aspect ratio. Do not include any text or annotations in the output image. Preserve transparency and alpha channel if present in the input image. Use transparent background when appropriate.'
+            : 'Generate or enhance the provided image based on the user\'s requirements. Maintain the same style, quality, and aspect ratio. Do not include any text or annotations in the output image. Use a clean background.';
+        
+        const prompt = request.prompt || defaultPrompt;
 
         // Normalize incoming image so the model always receives base64 bytes
         const normalizedUserImageBase64 = normalizeImagePayload(request.imageBase64);
@@ -116,6 +131,14 @@ export const generateImage = async (
                 error: 'No image was generated',
                 details: textResponse || 'The model did not return an image',
             };
+        }
+
+        // If input had transparency but output format doesn't support it, log a warning
+        // Note: We can't force the API to return PNG, but we can detect the mismatch
+        if (inputSupportsTransparency && !supportsTransparency(generatedMimeType)) {
+            console.warn(
+                `Input image (${request.mimeType}) supports transparency, but output format (${generatedMimeType}) does not. Transparency may be lost.`
+            );
         }
 
         return {
