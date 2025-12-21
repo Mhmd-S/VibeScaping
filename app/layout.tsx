@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Landscaping AI - Transform Your Vision Into Reality",
-  description: "Create stunning landscape designs with the power of AI. Draw, describe, and watch your ideas come to life.",
+  title: "Vibescaping - An Intilligent whiteboard for your ideas",
+  description: "Use a whiteboard to brainstorm your ideas with the power of AI. Draw, describe, and watch your ideas come to life.",
   icons: {
     icon: [
       { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },

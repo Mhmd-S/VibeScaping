@@ -14,22 +14,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import {
-  IconPaperclip,
-  IconPlus,
-  IconSearch,
   IconSend,
   IconSparkles,
-  IconFilter,
   IconPhoto,
   IconChevronDown,
-  IconCheck,
 } from "@tabler/icons-react";
 import { useRef, useState, useEffect } from "react";
 
 export type GeminiImageModel = 
   | 'gemini-3-pro-image-preview'
-  | 'gemini-2.5-flash-image'
-  | 'gemini-2.0-flash-preview-image-generation';
+  | 'gemini-2.5-flash-image';
 
 export const GEMINI_IMAGE_MODELS: Array<{ value: GeminiImageModel; label: string; description?: string }> = [
   { 
@@ -41,11 +35,6 @@ export const GEMINI_IMAGE_MODELS: Array<{ value: GeminiImageModel; label: string
     value: 'gemini-2.5-flash-image', 
     label: 'Gemini 2.5 Flash Image',
     description: 'Fast and efficient image generation model'
-  },
-  { 
-    value: 'gemini-2.0-flash-preview-image-generation', 
-    label: 'Gemini 2.0 Flash Preview',
-    description: 'Preview model for image generation'
   },
 ];
 
