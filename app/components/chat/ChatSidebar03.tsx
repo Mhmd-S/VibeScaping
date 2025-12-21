@@ -190,8 +190,8 @@ export function ChatSidebar03({
                             : 'flex-row items-center justify-between'
                     )}
                 >
-                    <a href="/" className="flex items-center gap-2">
-                        <Logo className="h-8 w-8" />
+                    <a href="/" className="flex items-center gap-0.5">
+                        <Logo className="h-12 w-12" />
                         {!isCollapsed && (
                             <span className="font-semibold text-black dark:text-white">
                                 Vibescaping

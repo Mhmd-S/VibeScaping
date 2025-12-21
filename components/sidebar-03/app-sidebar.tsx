@@ -191,7 +191,7 @@ export function DashboardSidebar() {
         )}
       >
         <a href="#" className="flex items-center gap-2">
-          <Logo className="h-8 w-8" />
+          <Logo className="h-12 w-12" />
           {!isCollapsed && (
             <span className="font-semibold text-black dark:text-white">
               Acme
