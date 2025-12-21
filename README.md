@@ -8,21 +8,12 @@ Create a `.env.local` file in the root directory with the following variables:
 
 ```bash
 GOOGLE_AI_API_KEY=your_google_ai_api_key_here
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
-# Cloudflare R2 for CDN persistence
-CLOUDFLARE_ACCOUNT_ID=your_account_id
-CLOUDFLARE_R2_ACCESS_KEY_ID=your_access_key
-CLOUDFLARE_R2_SECRET_ACCESS_KEY=your_secret_key
-CLOUDFLARE_R2_BUCKET=your_bucket_name
-# Optional: public domain or R2 public URL (defaults to R2 bucket URL)
-CLOUDFLARE_R2_PUBLIC_URL=https://<bucket>.<account>.r2.cloudflarestorage.com
 ```
 
-After setting env vars, install dependencies and generate the Prisma client:
+After setting env vars, install dependencies:
 
 ```bash
 pnpm install
-pnpm prisma generate
 ```
 
 ### Setting Up Google AI API Key
@@ -49,16 +40,6 @@ If you encounter the `API_KEY_SERVICE_BLOCKED` error, follow these steps:
    - Go to "Billing" in the Cloud Console and link a billing account
 
 After completing these steps, add the API key to your `.env.local` file and restart your development server.
-
-### Setting Up Google Maps API Key
-
-1. **Go to Google Cloud Console**: https://console.cloud.google.com/
-2. **Enable the Maps JavaScript API**:
-   - Navigate to "APIs & Services" > "Library"
-   - Search for "Maps JavaScript API"
-   - Click on it and press "Enable"
-3. **Create an API Key** (or reuse the one from above)
-4. **Add the API key to your `.env.local` file**
 
 ## Running the Development Server
 

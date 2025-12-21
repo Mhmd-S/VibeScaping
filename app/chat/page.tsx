@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import DrawingBoardChat from '@/app/components/chat/DrawingBoardChat';
 import { getWorkspace } from '@/app/utils/localWorkspace';
 import { toast } from '@/components/ui/toast';
 
-const ChatPage = () => {
+const ChatPageInner = () => {
     const searchParams = useSearchParams();
     const router = useRouter();
     const workspaceId = searchParams.get('workspaceId');
@@ -40,6 +40,14 @@ const ChatPage = () => {
     }
 
     return <DrawingBoardChat workspaceId={workspaceId || undefined} />;
+};
+
+const ChatPage = () => {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <ChatPageInner />
+        </Suspense>
+    );
 };
 
 export default ChatPage;

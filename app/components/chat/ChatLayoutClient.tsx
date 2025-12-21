@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
@@ -22,7 +22,7 @@ interface ChatLayoutClientProps {
     userEmail: string;
 }
 
-const ChatLayoutClient = ({ children, userName, userEmail }: ChatLayoutClientProps) => {
+const ChatLayoutClientInner = ({ children, userName, userEmail }: ChatLayoutClientProps) => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -137,6 +137,14 @@ const ChatLayoutClient = ({ children, userName, userEmail }: ChatLayoutClientPro
                 </SidebarInset>
             </div>
         </SidebarProvider>
+    );
+};
+
+const ChatLayoutClient = (props: ChatLayoutClientProps) => {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <ChatLayoutClientInner {...props} />
+        </Suspense>
     );
 };
 

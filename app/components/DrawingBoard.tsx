@@ -209,8 +209,9 @@ export const DrawingBoard = forwardRef<any, any>(
                 
                 // 2. Clear history so they can't "undo" back into the deleted project
                 try {
-                    if (excalidrawAPI.history && typeof excalidrawAPI.history.clearCurrentEntry === 'function') {
-                        excalidrawAPI.history.clearCurrentEntry();
+                    const history = excalidrawAPI.history as any;
+                    if (history && typeof history.clearCurrentEntry === 'function') {
+                        history.clearCurrentEntry();
                     }
                 } catch (historyError) {
                     // History clearing is optional, continue if it fails
