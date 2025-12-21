@@ -109,6 +109,15 @@ export const updateLastOpened = (id: string): void => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(workspaces));
 };
 
+export const restoreWorkspace = (workspace: LocalWorkspace): void => {
+    const workspaces = getAllWorkspaces();
+    // Check if it already exists to prevent duplicates
+    if (!workspaces.find(w => w.id === workspace.id)) {
+        workspaces.push(workspace);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(workspaces));
+    }
+};
+
 export const toWorkspaceType = (local: LocalWorkspace): Workspace => {
     return {
         id: local.id,

@@ -188,47 +188,58 @@ export const DrawingBoard = forwardRef<any, any>(
           return getSelectedIds(sel).length > 0;
       },
       setImage: (image: GeneratedImage) => loadImage(image),
+      clearCanvas: () => {
+        excalidrawAPI?.resetScene();
+        // This will trigger the onChange and save an empty array to IndexedDB
+      },
     }), [excalidrawAPI, loadImage]);
 
     // --- The Reset & Restore Logic ---
     useEffect(() => {
         if (!excalidrawAPI) return;
 
-        const loadWorkspace = async () => {
+        const loadOrReset = async () => {
             setIsLoading(true);
+            // If no workspaceId (we are at /chat), use the temporary key
             const targetId = workspaceId || 'anonymous_temp';
 
             try {
-                // 1. Clear the current board entirely
+                // 1. Force a clean slate
                 excalidrawAPI.resetScene();
                 
-                // 2. Fetch new data
+                // 2. Clear history so they can't "undo" back into the deleted project
+                try {
+                    if (excalidrawAPI.history && typeof excalidrawAPI.history.clearCurrentEntry === 'function') {
+                        excalidrawAPI.history.clearCurrentEntry();
+                    }
+                } catch (historyError) {
+                    // History clearing is optional, continue if it fails
+                    console.warn('Could not clear history:', historyError);
+                }
+
+                // 3. Try to load data for the targetId (could be empty if new/deleted)
                 const saved = await getWorkspaceData(targetId);
                 
                 if (saved) {
-                    // 3. Load files first, then elements
                     if (saved.files) excalidrawAPI.addFiles(Object.values(saved.files));
-                    
                     excalidrawAPI.updateScene({ 
                         elements: saved.elements || [],
-                        appState: {
-                            ...(saved.appState || {}),
-                            isLoading: false // Ensure Excalidraw isn't stuck in loading mode
-                        }
+                        appState: { ...saved.appState, isLoading: false }
                     });
                 }
 
-                // 4. Mark this ID as the successfully loaded one
+                // 4. Update the "Lock" - This fixes the "incapable of saving" issue
                 activeLoadedId.current = targetId;
+                
             } catch (err) {
-                console.error('Failed to switch workspace:', err);
+                console.error('Switch failed:', err);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        loadWorkspace();
-    }, [excalidrawAPI, workspaceId]); // Triggered every time the ID in the URL changes
+        loadOrReset();
+    }, [excalidrawAPI, workspaceId]); // This fires every time you navigate to or away from a workspace
 
     // Cleanup timeout on unmount
     useEffect(() => {

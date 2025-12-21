@@ -17,13 +17,15 @@ import {
     Trash2,
     LayoutDashboard,
 } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Logo } from '@/components/sidebar-03/logo';
 import { Button } from '@/components/ui/button';
 import { Workspace } from '@/app/types/workspace';
 import { DeleteProject } from '@/app/components/dialogs/DeleteProject';
 import { deleteWorkspaceData } from '@/app/utils/db';
+import { restoreWorkspace, toWorkspaceType } from '@/app/utils/localWorkspace';
+import { toast } from '@/components/ui/toast';
 import {
     SidebarMenu,
     SidebarMenuButton,
@@ -41,22 +43,13 @@ interface ChatSidebar03Props {
     onRefreshWorkspaces: () => Promise<void>;
 }
 
-const sampleNotifications = [
-    {
-        id: '1',
-        avatar: '/avatars/01.png',
-        fallback: 'WS',
-        text: 'New workspace created.',
-        time: '10m ago',
-    },
-];
-
 export function ChatSidebar03({
     workspaces,
     onWorkspaceCreate,
     onWorkspaceOpen,
     onWorkspaceRename,
     onWorkspaceDelete,
+    onRefreshWorkspaces,
 }: ChatSidebar03Props) {
     const { state } = useSidebar();
     const router = useRouter();
@@ -68,8 +61,18 @@ export function ChatSidebar03({
     const [savingRename, setSavingRename] = useState(false);
     const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const deleteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const hasWorkspaces = useMemo(() => workspaces.length > 0, [workspaces]);
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (deleteTimeoutRef.current) {
+                clearTimeout(deleteTimeoutRef.current);
+            }
+        };
+    }, []);
 
     const beginRename = (workspace: Workspace) => {
         setRenamingId(workspace.id);
@@ -100,26 +103,77 @@ export function ChatSidebar03({
     const handleDelete = async () => {
         if (!pendingDelete || deletingId) return;
 
-        const { id: workspaceId } = pendingDelete;
+        const { id: workspaceId, name: workspaceName } = pendingDelete;
+        const workspaceToRestore = workspaces.find(w => w.id === workspaceId);
+        
         setDeletingId(workspaceId);
 
         try {
-            // 1. Delete Metadata (localStorage) via the prop function
+            // 1. Immediately remove from the UI/Metadata
             await onWorkspaceDelete(workspaceId);
-            
-            // 2. Delete Heavy Data (IndexedDB)
-            await deleteWorkspaceData(workspaceId);
+            setPendingDelete(null);
 
-            if (renamingId === workspaceId) cancelRename();
-            
-            // 3. Redirect if we just deleted the active workspace
+            // 2. Clear any existing timeout
+            if (deleteTimeoutRef.current) {
+                clearTimeout(deleteTimeoutRef.current);
+            }
+
+            // 3. Show Toast with Undo Action
+            const toastId = toast(`Project "${workspaceName}" deleted`, {
+                duration: 5000, // Give them 5 seconds
+                action: {
+                    label: 'Undo',
+                    onClick: async () => {
+                        // Clear the pending deletion
+                        if (deleteTimeoutRef.current) {
+                            clearTimeout(deleteTimeoutRef.current);
+                            deleteTimeoutRef.current = null;
+                        }
+                        
+                        if (workspaceToRestore) {
+                            // Convert Workspace back to LocalWorkspace for restoration
+                            const localWorkspace = {
+                                id: workspaceToRestore.id,
+                                name: workspaceToRestore.name,
+                                description: workspaceToRestore.description,
+                                createdAt: workspaceToRestore.createdAt,
+                                updatedAt: workspaceToRestore.updatedAt,
+                                lastOpenedAt: workspaceToRestore.lastOpenedAt,
+                            };
+                            // Restore metadata
+                            restoreWorkspace(localWorkspace);
+                            // Refresh the sidebar list
+                            await onRefreshWorkspaces();
+                            toast.success('Workspace restored');
+                        }
+                    },
+                },
+            });
+
+            // 4. Schedule the heavy permanent deletion after 5 seconds
+            deleteTimeoutRef.current = setTimeout(async () => {
+                // Perform the heavy permanent deletion only now
+                await deleteWorkspaceData(workspaceId);
+                deleteTimeoutRef.current = null;
+            }, 5000);
+
+            // 5. If we just deleted what we are looking at...
             if (activeWorkspaceId === workspaceId) {
+                // Clear the "anonymous" cache so the next screen is truly empty
+                await deleteWorkspaceData('anonymous_temp');
+                
+                // Redirect to fresh chat
                 router.push('/chat');
             }
-            
-            setPendingDelete(null);
+
         } catch (error) {
-            console.error('Failed to fully delete workspace', error);
+            console.error('Delete failed', error);
+            toast.error('Failed to delete project');
+            // Clear timeout on error
+            if (deleteTimeoutRef.current) {
+                clearTimeout(deleteTimeoutRef.current);
+                deleteTimeoutRef.current = null;
+            }
         } finally {
             setDeletingId(null);
         }
