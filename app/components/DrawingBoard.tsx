@@ -20,12 +20,15 @@ export interface DrawingBoardRef {
 export const DrawingBoard = forwardRef<any, any>(
   ({ initialImage, onError, workspaceId, onFirstDraw, onSelectionChange }, ref) => {
     const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
-    const [hasDrawn, setHasDrawn] = useState(false);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     
     // CRITICAL: Track the ID that is currently "active" in the UI to prevent cross-saving
     const activeLoadedId = useRef<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    
+    // Track if we've already triggered the 'first draw' for this session
+    // This resets whenever workspaceId changes, allowing fresh starts
+    const hasTriggeredFirstDraw = useRef(false);
 
     // Helper to extract IDs from the selectedElementIds (which can be an Object or a Set)
     const getSelectedIds = (selectedElementIds: any): string[] => {
@@ -146,15 +149,18 @@ export const DrawingBoard = forwardRef<any, any>(
             onSelectionChange(selectedIds.length > 0);
         }
 
+        // Check if there is actual content (excluding deleted items and the initial image)
         const hasContent = elements.some((el: any) => !el.isDeleted && el.type !== 'image');
-        if (!hasDrawn && hasContent && onFirstDraw) {
-            setHasDrawn(true);
-            onFirstDraw();
+        
+        // TRIGGER: If content exists and we haven't told the parent yet, do it now
+        if (hasContent && !hasTriggeredFirstDraw.current && onFirstDraw) {
+            hasTriggeredFirstDraw.current = true;
+            onFirstDraw(); // This calls handleFirstDraw in DrawingBoardChat
         }
 
         // 2. Persist
         persist(elements, appState, files);
-    }, [hasDrawn, onFirstDraw, onSelectionChange, persist, isLoading]);
+    }, [onFirstDraw, onSelectionChange, persist, isLoading]);
 
     useImperativeHandle(ref, () => ({
       exportCanvasAsImage: async () => {
@@ -194,6 +200,11 @@ export const DrawingBoard = forwardRef<any, any>(
       },
     }), [excalidrawAPI, loadImage]);
 
+    // Reset hasTriggeredFirstDraw whenever workspaceId changes (especially when going to null)
+    useEffect(() => {
+        hasTriggeredFirstDraw.current = false;
+    }, [workspaceId]);
+
     // --- The Reset & Restore Logic ---
     useEffect(() => {
         if (!excalidrawAPI) return;
@@ -230,6 +241,7 @@ export const DrawingBoard = forwardRef<any, any>(
                 }
 
                 // 4. Update the "Lock" - This fixes the "incapable of saving" issue
+                // Reset to anonymous_temp when workspaceId is undefined to allow fresh starts
                 activeLoadedId.current = targetId;
                 
             } catch (err) {

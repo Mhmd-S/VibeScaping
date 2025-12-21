@@ -35,7 +35,6 @@ const DrawingBoardChat = ({
   const [workspaceId, setWorkspaceId] = useState<string | undefined>(
     typeof window !== 'undefined' ? (initialWorkspaceId || undefined) : undefined
   );
-  const [hasCreatedWorkspace, setHasCreatedWorkspace] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [currentImage, setCurrentImage] = useState<GeneratedImage | null>(null);
@@ -75,25 +74,27 @@ const DrawingBoardChat = ({
   // Create workspace on first draw if none exists
   const handleFirstDraw = useCallback(async () => {
     if (typeof window === 'undefined') return;
-    if (hasCreatedWorkspace || workspaceId) return;
+    // If we already have an ID, don't create another one
+    if (workspaceId) return;
 
-    const newWorkspace = createWorkspace();
-    
-    // Migrate from temp to real ID in IndexedDB
     try {
-      const tempData = await getWorkspaceData('anonymous_temp');
+      // 1. Create the workspace metadata in localStorage
+      const newWorkspace = createWorkspace("New Landscaping Project");
+
+      // 2. IMPORTANT: Move any temp drawings from "anonymous_temp" to the new ID in IndexedDB
+      // This ensures the drawing doesn't vanish when the ID switches
+      const tempData = await getWorkspaceData("anonymous_temp");
       if (tempData) {
         await saveWorkspaceData(newWorkspace.id, tempData);
       }
-    } catch (error) {
-      console.error('Failed to migrate workspace data', error);
-    }
 
-    setWorkspaceId(newWorkspace.id);
-    setHasCreatedWorkspace(true);
-    router.replace(`/chat?workspaceId=${newWorkspace.id}`);
-    updateLastOpened(newWorkspace.id);
-  }, [hasCreatedWorkspace, workspaceId, router]);
+      // 3. Update the URL. This will trigger the DrawingBoard's useEffect to 'load' the new ID
+      router.replace(`/chat?workspaceId=${newWorkspace.id}`);
+      updateLastOpened(newWorkspace.id);
+    } catch (error) {
+      console.error("Failed to transition to new workspace", error);
+    }
+  }, [workspaceId, router]);
 
   const handleImageUpdate = useCallback((image: GeneratedImage) => {
     setCurrentImage(image);
