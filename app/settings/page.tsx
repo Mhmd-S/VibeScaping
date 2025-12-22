@@ -2,13 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Eye, EyeOff, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Save, Trash2, CreditCard, Link as LinkIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { getApiKey, setApiKey, deleteApiKey, hasApiKey } from '@/app/utils/apiKey';
+import { AccountStatus } from '@/app/components/AccountStatus';
 
 const SettingsPage = () => {
     const router = useRouter();
@@ -21,10 +24,38 @@ const SettingsPage = () => {
     const [isDeleting, setIsDeleting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
+    const [creditBalance, setCreditBalance] = useState<number | null>(null);
+    const [isLoadingStatus, setIsLoadingStatus] = useState(true);
 
     useEffect(() => {
         loadApiKey();
+        loadSubscriptionStatus();
     }, []);
+
+    const loadSubscriptionStatus = async () => {
+        setIsLoadingStatus(true);
+        try {
+            const [subResponse, creditsResponse] = await Promise.all([
+                fetch('/api/subscription/status').catch(() => null),
+                fetch('/api/credits/balance').catch(() => null),
+            ]);
+
+            if (subResponse?.ok) {
+                const subData = await subResponse.json();
+                setSubscriptionStatus(subData.status);
+            }
+
+            if (creditsResponse?.ok) {
+                const creditsData = await creditsResponse.json();
+                setCreditBalance(creditsData.balance);
+            }
+        } catch (err) {
+            // Ignore errors - user might not be logged in
+        } finally {
+            setIsLoadingStatus(false);
+        }
+    };
 
     const loadApiKey = () => {
         setIsLoading(true);
@@ -111,13 +142,17 @@ const SettingsPage = () => {
             </div>
 
             <div className="space-y-6">
+                {/* Prominent Account Status */}
+                <AccountStatus userId={null} showTopUp />
+
                 <div className="rounded-lg border border-border bg-card p-6">
                     <h2 className="mb-4 text-lg font-semibold text-card-foreground">
-                        Gemini API Key
+                        Gemini API Key (BYOK)
                     </h2>
                     <p className="mb-4 text-sm text-muted-foreground">
-                        Your API key is encrypted and stored securely. It will be used for chat
-                        conversations and image generation.
+                        {hasApiKey()
+                            ? 'You are using BYOK mode. Your API key is used for all image generation requests, and data is stored locally.'
+                            : 'Provide your own Gemini API key to use BYOK mode. When using BYOK, your data is stored locally and no credits are required.'}
                     </p>
 
                     {isLoading ? (

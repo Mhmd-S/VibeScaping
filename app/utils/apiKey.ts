@@ -36,3 +36,11 @@ export const hasApiKey = (): boolean => {
     return getApiKey() !== null;
 };
 
+/**
+ * Check if user is using BYOK (Bring Your Own Key) mode
+ * This means they have provided their own API key and should bypass credit checks
+ */
+export const isUsingBYOK = (): boolean => {
+    return hasApiKey();
+};
+

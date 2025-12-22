@@ -170,13 +170,30 @@ const DrawingBoardChat = ({
         throw new Error("Failed to export canvas, Chat");
       }
 
-      // Call Gemini API directly from client
-      const result = await generateImage({
-        prompt: currentPrompt,
-        imageBase64: canvasExport.image,
-        mimeType: canvasExport.mimeType,
-        model: modelToUse,
-      });
+      // Get user session if available (for subscription mode)
+      let userId: string | null = null;
+      try {
+        const sessionResponse = await fetch('/api/auth/session');
+        if (sessionResponse.ok) {
+          const session = await sessionResponse.json();
+          userId = session?.user?.id || null;
+        }
+      } catch (error) {
+        // Session fetch failed, continue with BYOK mode
+        console.log('Session fetch failed, using BYOK mode');
+      }
+
+      // Call Gemini API (handles both BYOK and subscription modes)
+      const result = await generateImage(
+        {
+          prompt: currentPrompt,
+          imageBase64: canvasExport.image,
+          mimeType: canvasExport.mimeType,
+          model: modelToUse,
+        },
+        userId,
+        workspaceId || undefined
+      );
 
       if (!result.success) {
         throw new Error(

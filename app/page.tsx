@@ -20,12 +20,17 @@ const Home = () => {
                             <Logo className="h-10 w-10" />
                             <span className="font-semibold text-foreground">VibeScaping</span>
                         </Link>
-                        <Button asChild variant="default">
-                            <Link href="/chat">
-                                Get Started for Free
-                                <ArrowRight className="ml-2 h-4 w-4" />
-                            </Link>
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button asChild variant="ghost">
+                                <Link href="/auth/signin">Sign In</Link>
+                            </Button>
+                            <Button asChild variant="default">
+                                <Link href="/chat">
+                                    Get Started for Free
+                                    <ArrowRight className="ml-2 h-4 w-4" />
+                                </Link>
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </header>
