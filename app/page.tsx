@@ -4,7 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ArrowRight, Sparkles, Users, BookOpen, Play, Key, HardDrive, Shield, Zap } from 'lucide-react';
 import { Logo } from '@/components/sidebar-03/logo';
 
 
@@ -140,6 +141,206 @@ const Home = () => {
                         strokeDasharray="1px 1px"
                     ></path>
                 </svg>
+            </section>
+
+            {/* Demos Section */}
+            <section className="flex flex-col items-center w-full gap-8">
+                {/* Demo 1: Property to Architecture Map */}
+                <div className="relative flex w-full items-center flex-col gap-8 border-t border-border py-16 md:p-8">
+                    <div className="container grid grid-cols-1 gap-10 md:grid-cols-2">
+                        <div className="flex flex-col gap-4">
+                            <div>
+                                <Badge variant="secondary" className="rounded-none uppercase">
+                                    Demo
+                                </Badge>
+                            </div>
+                            <h3 className="text-2xl font-bold">Property to Architecture Map</h3>
+                            <div className="space-y-2 text-sm text-foreground/90">
+                                <div className="flex items-center gap-2">
+                                    <Users className="h-4 w-4" aria-hidden="true" />
+                                    <span>Architects, Landscape Designers, Property Developers</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <BookOpen className="h-4 w-4" aria-hidden="true" />
+                                    <span>Whiteboard + NBP Workflow</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Play className="h-4 w-4" aria-hidden="true" />
+                                    <span>Video Demo</span>
+                                </div>
+                            </div>
+                            <p className="text-lg leading-relaxed">
+                                Transform an aerial property view into an architectural-style map and redesign the landscape. 
+                                Watch how whiteboard drawing combined with NBP (Neural Backpropagation) turns a simple property 
+                                capture into a detailed architectural visualization with landscape modifications.
+                            </p>
+                            <Link 
+                                href="/chat" 
+                                className="group/btn flex w-fit items-center gap-2 border-l border-border p-1 hover:bg-accent"
+                            >
+                                <span className="font-medium">Try It Now</span>
+                                <ArrowRight className="h-4 w-4 text-primary transition-transform group-hover/btn:translate-x-1" aria-hidden="true" />
+                            </Link>
+                        </div>
+                        <div>
+                            <div className="aspect-video w-full bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg p-4 dark:from-muted dark:to-muted/50">
+                                <video 
+                                    className="h-full w-full object-cover rounded-md"
+                                    controls
+                                    preload="metadata"
+                                    aria-label="Property to Architecture Map Demo"
+                                >
+                                    <source src="/demos/Demo2.mp4" type="video/mp4" />
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Demo 2: Stick Man to Warrior */}
+                <div className="relative flex flex-col w-full items-center gap-8 border-t border-border py-16 md:p-8">
+                    <div className="container grid grid-cols-1 gap-10 md:grid-cols-2">
+                        <div className="flex flex-col gap-4">
+                            <div>
+                                <Badge variant="secondary" className="rounded-none uppercase">
+                                    Demo
+                                </Badge>
+                            </div>
+                            <h3 className="text-2xl font-bold">Stick Man to Warrior</h3>
+                            <div className="space-y-2 text-sm text-foreground/90">
+                                <div className="flex items-center gap-2">
+                                    <Users className="h-4 w-4" aria-hidden="true" />
+                                    <span>Artists, Designers, Creatives</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <BookOpen className="h-4 w-4" aria-hidden="true" />
+                                    <span>NBP Enhancement Workflow</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Play className="h-4 w-4" aria-hidden="true" />
+                                    <span>Video Demo</span>
+                                </div>
+                            </div>
+                            <p className="text-lg leading-relaxed">
+                                Watch a simple stick man sketch transform into a fully equipped warrior. Using NBP (Neural Backpropagation), 
+                                we add a sword, armor, and shield while preserving the original stick man structure. This demonstrates 
+                                the power of building upon existing drawings without altering the base sketch.
+                            </p>
+                            <Link 
+                                href="/chat" 
+                                className="group/btn flex w-fit items-center gap-2 border-l border-border p-1 hover:bg-accent"
+                            >
+                                <span className="font-medium">Try It Now</span>
+                                <ArrowRight className="h-4 w-4 text-primary transition-transform group-hover/btn:translate-x-1" aria-hidden="true" />
+                            </Link>
+                        </div>
+                        <div>
+                            <div className="aspect-video w-full bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg p-4 dark:from-muted dark:to-muted/50">
+                                <video 
+                                    className="h-full w-full object-cover rounded-md"
+                                    controls
+                                    preload="metadata"
+                                    aria-label="Stick Man to Warrior Demo"
+                                >
+                                    <source src="/demos/Demo3.mp4" type="video/mp4" />
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Features Section */}
+            <section className="border-t border-border py-16 md:py-24">
+                <div className="container mx-auto px-4">
+                    <div className="flex flex-col items-center gap-4 mb-12 text-center">
+                        <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
+                            Privacy & Control First
+                        </h2>
+                        <p className="text-lg text-muted-foreground max-w-2xl">
+                            Your data stays yours. Everything runs locally, and you connect directly to NBP with your own API key.
+                        </p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
+                        {/* Feature 1: BYOK */}
+                        <div className="flex flex-col gap-4 p-6 rounded-lg border border-border bg-card">
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center justify-center size-12 rounded-lg bg-primary/10">
+                                    <Key className="h-6 w-6 text-primary" />
+                                </div>
+                                <h3 className="text-xl font-semibold">Bring Your Own Key</h3>
+                            </div>
+                            <p className="text-muted-foreground">
+                                Use your own API key to access NBP directly. No intermediaries, no middlemen.
+                            </p>
+                        </div>
+
+                        {/* Feature 2: Local Storage */}
+                        <div className="flex flex-col gap-4 p-6 rounded-lg border border-border bg-card">
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center justify-center size-12 rounded-lg bg-primary/10">
+                                    <HardDrive className="h-6 w-6 text-primary" />
+                                </div>
+                                <h3 className="text-xl font-semibold">Local Storage</h3>
+                            </div>
+                            <p className="text-muted-foreground">
+                                All your data is saved locally in your browser. Your drawings, images, and workspaces never leave your device.
+                            </p>
+                        </div>
+
+                        {/* Feature 3: No Server Uploads */}
+                        <div className="flex flex-col gap-4 p-6 rounded-lg border border-border bg-card">
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center justify-center size-12 rounded-lg bg-primary/10">
+                                    <Shield className="h-6 w-6 text-primary" />
+                                </div>
+                                <h3 className="text-xl font-semibold">Nothing Sent to Servers</h3>
+                            </div>
+                            <p className="text-muted-foreground">
+                                We don't store, process, or have access to your data. Nothing is sent to our servers.
+                            </p>
+                        </div>
+
+                        {/* Feature 4: Direct NBP Access */}
+                        <div className="flex flex-col gap-4 p-6 rounded-lg border border-border bg-card">
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center justify-center size-12 rounded-lg bg-primary/10">
+                                    <Zap className="h-6 w-6 text-primary" />
+                                </div>
+                                <h3 className="text-xl font-semibold">Direct NBP Access</h3>
+                            </div>
+                            <p className="text-muted-foreground">
+                                Connect directly to NBP (Neural Backpropagation) services. Fast, secure, and under your control.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* CTA Section */}
+            <section className="border-t border-border py-16 md:py-24 bg-muted/30">
+                <div className="container mx-auto px-4">
+                    <div className="flex flex-col items-center gap-6 text-center max-w-2xl mx-auto">
+                        <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
+                            Ready to Get Started?
+                        </h2>
+                        <p className="text-lg text-muted-foreground">
+                            Start creating with VibeScaping. Draw on the whiteboard, iterate with NBP, and find your creative flow.
+                        </p>
+                        <Button
+                            asChild
+                            size="lg"
+                            className="group flex w-fit items-center justify-center gap-2 rounded-full px-6 py-6 tracking-tight text-lg"
+                        >
+                            <Link href="/chat">
+                                <span>Get Started for Free</span>
+                                <ArrowRight className="size-5 -rotate-45 transition-all ease-out group-hover:ml-2 group-hover:rotate-0" />
+                            </Link>
+                        </Button>
+                    </div>
+                </div>
             </section>
         </div>
     );
