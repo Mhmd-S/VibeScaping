@@ -1,18 +1,71 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, Sparkles, Users, BookOpen, Play, Key, HardDrive, Shield, Zap } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ArrowRight, Users, BookOpen, Play, Key, HardDrive, Shield, Zap } from 'lucide-react';
 import { Logo } from '@/components/sidebar-03/logo';
 
 
 
 const Home = () => {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://vibescaping.com';
+    
+    const webpageData = {
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        name: 'VibeScaping - AI Sketch to Image | Whiteboard AI',
+        description: 'Transform your AI sketches into stunning images with VibeScaping\'s intelligent whiteboard AI. Draw, refine, and create with our AI sketch to image tool powered by Nano Banana Editor (NBP).',
+        url: siteUrl,
+        inLanguage: 'en-US',
+        isPartOf: {
+            '@type': 'WebSite',
+            name: 'VibeScaping',
+            url: siteUrl,
+        },
+        about: {
+            '@type': 'SoftwareApplication',
+            name: 'VibeScaping',
+            applicationCategory: 'DesignApplication',
+        },
+    };
+
+    const videoSchema1 = {
+        '@context': 'https://schema.org',
+        '@type': 'VideoObject',
+        name: 'Property to Architecture Map - AI Sketch to Image Demo',
+        description: 'Transform an aerial property view into an architectural-style map and redesign the landscape using our AI sketch to image technology. Watch how our whiteboard AI combined with Nano Banana Editor (NBP) turns a simple property capture into a detailed architectural visualization with landscape modifications.',
+        thumbnailUrl: `${siteUrl}/demos/Demo2.mp4`,
+        uploadDate: '2024-01-01',
+        contentUrl: `${siteUrl}/demos/Demo2.mp4`,
+        embedUrl: `${siteUrl}/demos/Demo2.mp4`,
+    };
+
+    const videoSchema2 = {
+        '@context': 'https://schema.org',
+        '@type': 'VideoObject',
+        name: 'Stick Man to Warrior - AI Sketch Enhancement Demo',
+        description: 'Watch a simple stick man sketch transform into a fully equipped warrior using our AI sketch to image technology. Using Nano Banana Editor (NBP), we add a sword, armor, and shield while preserving the original stick man structure. This demonstrates the power of our whiteboard AI for building upon existing drawings without altering the base sketch.',
+        thumbnailUrl: `${siteUrl}/demos/Demo3.mp4`,
+        uploadDate: '2024-01-01',
+        contentUrl: `${siteUrl}/demos/Demo3.mp4`,
+        embedUrl: `${siteUrl}/demos/Demo3.mp4`,
+    };
+
     return (
         <div className="min-h-screen bg-background">
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(webpageData) }}
+            />
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(videoSchema1) }}
+            />
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(videoSchema2) }}
+            />
             {/* Floating Header */}
             <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-md">
                 <div className="container mx-auto px-4">
@@ -21,12 +74,14 @@ const Home = () => {
                             <Logo className="h-10 w-10" />
                             <span className="font-semibold text-foreground">VibeScaping</span>
                         </Link>
-                        <Button asChild variant="default">
-                            <Link href="/chat">
-                                Get Started for Free
-                                <ArrowRight className="ml-2 h-4 w-4" />
-                            </Link>
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button asChild variant="default">
+                                <Link href="/chat">
+                                    Get Started for Free
+                                    <ArrowRight className="ml-2 h-4 w-4" />
+                                </Link>
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -67,10 +122,10 @@ const Home = () => {
                             <div className="z-[9] bg-background absolute h-[105%] w-[85%]"></div>
                         </div>
                         <p className="bg-background text-muted-foreground mt-5 max-w-xl">
-                            Combine whiteboard and NBP to iterate on images and find your creative flow. Draw, refine, and vibe.{" "}
+                            Transform your AI sketches into stunning images with our intelligent whiteboard AI. Use our AI sketch to image tool powered by Nano Banana Editor (NBP) to draw, refine, and find your creative flow.{" "}
                             
                         </p>
-                        <div className="flex flex-col gap-4 items-center">
+                        <div className="flex gap-4">
                             <Button
                                 asChild
                                 className="group flex w-fit items-center justify-center gap-2 rounded-full px-4 py-1 tracking-tight h-9 text-md"
@@ -80,19 +135,6 @@ const Home = () => {
                                     <ArrowRight className="size-4 -rotate-45 transition-all ease-out group-hover:ml-3 group-hover:rotate-0" />
                                 </Link>
                             </Button>
-                            <a
-                                href="https://www.producthunt.com/products/vibescaping?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-vibescaping"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="mt-2"
-                            >
-                                <img
-                                    alt="Vibescaping - Draw, iterate, create—get into flow. | Product Hunt"
-                                    width="250"
-                                    height="54"
-                                    src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1053643&theme=light&t=1766496547292"
-                                />
-                            </a>
                         </div>
                     </div>
                 </div>
@@ -167,7 +209,7 @@ const Home = () => {
                                     Demo
                                 </Badge>
                             </div>
-                            <h3 className="text-2xl font-bold">Property to Architecture Map</h3>
+                            <h2 className="text-2xl font-bold">Property to Architecture Map - AI Sketch to Image</h2>
                             <div className="space-y-2 text-sm text-foreground/90">
                                 <div className="flex items-center gap-2">
                                     <Users className="h-4 w-4" aria-hidden="true" />
@@ -183,8 +225,8 @@ const Home = () => {
                                 </div>
                             </div>
                             <p className="text-lg leading-relaxed">
-                                Transform an aerial property view into an architectural-style map and redesign the landscape. 
-                                Watch how whiteboard drawing combined with NBP (Neural Backpropagation) turns a simple property 
+                                Transform an aerial property view into an architectural-style map and redesign the landscape using our AI sketch to image technology. 
+                                Watch how our whiteboard AI combined with Nano Banana Editor (NBP) turns a simple property 
                                 capture into a detailed architectural visualization with landscape modifications.
                             </p>
                             <Link 
@@ -220,7 +262,7 @@ const Home = () => {
                                     Demo
                                 </Badge>
                             </div>
-                            <h3 className="text-2xl font-bold">Stick Man to Warrior</h3>
+                            <h2 className="text-2xl font-bold">Stick Man to Warrior - AI Sketch Enhancement</h2>
                             <div className="space-y-2 text-sm text-foreground/90">
                                 <div className="flex items-center gap-2">
                                     <Users className="h-4 w-4" aria-hidden="true" />
@@ -236,9 +278,9 @@ const Home = () => {
                                 </div>
                             </div>
                             <p className="text-lg leading-relaxed">
-                                Watch a simple stick man sketch transform into a fully equipped warrior. Using NBP (Neural Backpropagation), 
+                                Watch a simple stick man sketch transform into a fully equipped warrior using our AI sketch to image technology. Using Nano Banana Editor (NBP), 
                                 we add a sword, armor, and shield while preserving the original stick man structure. This demonstrates 
-                                the power of building upon existing drawings without altering the base sketch.
+                                the power of our whiteboard AI for building upon existing drawings without altering the base sketch.
                             </p>
                             <Link 
                                 href="/chat" 
