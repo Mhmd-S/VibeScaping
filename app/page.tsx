@@ -70,7 +70,7 @@ const Home = () => {
                             Combine whiteboard and NBP to iterate on images and find your creative flow. Draw, refine, and vibe.{" "}
                             
                         </p>
-                        <div className="flex gap-4">
+                        <div className="flex flex-col gap-4 items-center">
                             <Button
                                 asChild
                                 className="group flex w-fit items-center justify-center gap-2 rounded-full px-4 py-1 tracking-tight h-9 text-md"
@@ -80,6 +80,19 @@ const Home = () => {
                                     <ArrowRight className="size-4 -rotate-45 transition-all ease-out group-hover:ml-3 group-hover:rotate-0" />
                                 </Link>
                             </Button>
+                            <a
+                                href="https://www.producthunt.com/products/vibescaping?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-vibescaping"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-2"
+                            >
+                                <img
+                                    alt="Vibescaping - Draw, iterate, create—get into flow. | Product Hunt"
+                                    width="250"
+                                    height="54"
+                                    src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1053643&theme=light&t=1766496547292"
+                                />
+                            </a>
                         </div>
                     </div>
                 </div>
