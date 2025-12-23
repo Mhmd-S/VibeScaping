@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://vibescaping.com';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://vibescaping.live';
 
     return [
         {
@@ -15,18 +15,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
             lastModified: new Date(),
             changeFrequency: 'daily',
             priority: 0.9,
-        },
-        {
-            url: `${baseUrl}/auth/signin`,
-            lastModified: new Date(),
-            changeFrequency: 'monthly',
-            priority: 0.5,
-        },
-        {
-            url: `${baseUrl}/auth/signup`,
-            lastModified: new Date(),
-            changeFrequency: 'monthly',
-            priority: 0.5,
         },
         {
             url: `${baseUrl}/settings`,
