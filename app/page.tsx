@@ -10,7 +10,7 @@ import { Logo } from '@/components/sidebar-03/logo';
 
 const Home = () => {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://vibescaping.com';
-    
+
     const webpageData = {
         '@context': 'https://schema.org',
         '@type': 'WebPage',
@@ -75,6 +75,9 @@ const Home = () => {
                             <span className="font-semibold text-foreground">VibeScaping</span>
                         </Link>
                         <div className="flex items-center gap-2">
+                            <Button asChild variant="ghost">
+                                <Link href="/auth/signin">Sign In</Link>
+                            </Button>
                             <Button asChild variant="default">
                                 <Link href="/chat">
                                     Get Started for Free
@@ -123,7 +126,7 @@ const Home = () => {
                         </div>
                         <p className="bg-background text-muted-foreground mt-5 max-w-xl">
                             Transform your AI sketches into stunning images with our intelligent whiteboard AI. Use our AI sketch to image tool powered by Nano Banana Editor (NBP) to draw, refine, and find your creative flow.{" "}
-                            
+
                         </p>
                         <div className="flex gap-4">
                             <Button
@@ -225,12 +228,12 @@ const Home = () => {
                                 </div>
                             </div>
                             <p className="text-lg leading-relaxed">
-                                Transform an aerial property view into an architectural-style map and redesign the landscape using our AI sketch to image technology. 
-                                Watch how our whiteboard AI combined with Nano Banana Editor (NBP) turns a simple property 
+                                Transform an aerial property view into an architectural-style map and redesign the landscape using our AI sketch to image technology.
+                                Watch how our whiteboard AI combined with Nano Banana Editor (NBP) turns a simple property
                                 capture into a detailed architectural visualization with landscape modifications.
                             </p>
-                            <Link 
-                                href="/chat" 
+                            <Link
+                                href="/chat"
                                 className="group/btn flex w-fit items-center gap-2 border-l border-border p-1 hover:bg-accent"
                             >
                                 <span className="font-medium">Try It Now</span>
@@ -239,7 +242,7 @@ const Home = () => {
                         </div>
                         <div>
                             <div className="aspect-video w-full bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg p-4 dark:from-muted dark:to-muted/50">
-                                <video 
+                                <video
                                     className="h-full w-full object-cover rounded-md"
                                     controls
                                     preload="metadata"
@@ -278,12 +281,12 @@ const Home = () => {
                                 </div>
                             </div>
                             <p className="text-lg leading-relaxed">
-                                Watch a simple stick man sketch transform into a fully equipped warrior using our AI sketch to image technology. Using Nano Banana Editor (NBP), 
-                                we add a sword, armor, and shield while preserving the original stick man structure. This demonstrates 
+                                Watch a simple stick man sketch transform into a fully equipped warrior using our AI sketch to image technology. Using Nano Banana Editor (NBP),
+                                we add a sword, armor, and shield while preserving the original stick man structure. This demonstrates
                                 the power of our whiteboard AI for building upon existing drawings without altering the base sketch.
                             </p>
-                            <Link 
-                                href="/chat" 
+                            <Link
+                                href="/chat"
                                 className="group/btn flex w-fit items-center gap-2 border-l border-border p-1 hover:bg-accent"
                             >
                                 <span className="font-medium">Try It Now</span>
@@ -292,7 +295,7 @@ const Home = () => {
                         </div>
                         <div>
                             <div className="aspect-video w-full bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg p-4 dark:from-muted dark:to-muted/50">
-                                <video 
+                                <video
                                     className="h-full w-full object-cover rounded-md"
                                     controls
                                     preload="metadata"

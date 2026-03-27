@@ -9,6 +9,7 @@ import type {
 } from "@excalidraw/excalidraw/types";
 import { GeneratedImage } from "../types/annotation";
 import { saveWorkspaceData, getWorkspaceData } from "@/app/utils/db";
+import { hasApiKey } from "@/app/utils/apiKey";
 
 export interface DrawingBoardRef {
   exportCanvasAsImage: () => Promise<{ image: string; mimeType: string } | null>;
@@ -123,7 +124,7 @@ export const DrawingBoard = forwardRef<any, any>(
         
         saveTimeoutRef.current = setTimeout(async () => {
             try {
-                await saveWorkspaceData(id, { 
+                const data = { 
                     elements: elements.filter((el: any) => !el.isDeleted), 
                     files,
                     // Only save essential UI state
@@ -133,7 +134,37 @@ export const DrawingBoard = forwardRef<any, any>(
                         scrollX: appState.scrollX,
                         scrollY: appState.scrollY
                     }
-                });
+                };
+
+                // Always save to IndexedDB for local access
+                await saveWorkspaceData(id, data);
+
+                // If user has subscription and is not using BYOK, sync to cloud
+                try {
+                    const sessionResponse = await fetch('/api/auth/session');
+                    if (sessionResponse.ok) {
+                        const session = await sessionResponse.json();
+                        const userId = session?.user?.id;
+                        if (userId) {
+                            // Check if using BYOK (client-side check)
+                            const isBYOK = hasApiKey();
+                            
+                            // Check if should sync to cloud
+                            const syncResponse = await fetch('/api/workspace/sync', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ workspaceId: id, isBYOK }),
+                            });
+                            // Don't throw on sync failure - local save is primary
+                            if (!syncResponse.ok) {
+                                console.log('Cloud sync failed, but local save succeeded');
+                            }
+                        }
+                    }
+                } catch (syncError) {
+                    // Ignore sync errors - local save is the priority
+                    console.log('Cloud sync error (non-critical):', syncError);
+                }
             } catch (e) {
                 console.error('IndexedDB Save Failed', e);
             }

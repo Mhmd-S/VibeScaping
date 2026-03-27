@@ -20,9 +20,10 @@ interface ChatLayoutClientProps {
     children: React.ReactNode;
     userName: string;
     userEmail: string;
+    userId: string | null;
 }
 
-const ChatLayoutClientInner = ({ children, userName, userEmail }: ChatLayoutClientProps) => {
+const ChatLayoutClientInner = ({ children, userName, userEmail, userId }: ChatLayoutClientProps) => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -124,6 +125,7 @@ const ChatLayoutClientInner = ({ children, userName, userEmail }: ChatLayoutClie
                     workspaces={workspaces}
                     userName={userName}
                     userEmail={userEmail}
+                    userId={userId}
                     onWorkspaceCreate={createWorkspace}
                     onWorkspaceOpen={handleOpenWorkspace}
                     onWorkspaceRename={handleRename}

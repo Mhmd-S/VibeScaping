@@ -1,7 +1,7 @@
 'use client';
 
 import { GoogleGenAI } from '@google/genai';
-import { getApiKey } from './apiKey';
+import { getApiKey, isUsingBYOK } from './apiKey';
 import type { GeminiImageModel } from '@/components/ai-01';
 
 const normalizeImagePayload = (value: string): string => {
@@ -41,19 +41,41 @@ export interface GenerateImageResponse {
 }
 
 export const generateImage = async (
-    request: GenerateImageRequest
+    request: GenerateImageRequest,
+    userId?: string | null,
+    workspaceId?: string
 ): Promise<GenerateImageResponse> => {
+    const usingBYOK = isUsingBYOK();
     const apiKey = getApiKey();
 
-    if (!apiKey) {
+    // If using BYOK, use client-side generation with user's API key
+    // For authenticated users with BYOK, server validation happens in generateImageWithSubscription
+    // but since BYOK allows all models, we can use client-side directly
+    if (usingBYOK && apiKey) {
+        // For authenticated users, we could validate with server, but since BYOK allows all models
+        // for all tiers, we can proceed directly with client-side generation
+        return generateImageWithBYOK(request, apiKey);
+    }
+
+    // If not BYOK, check if user is authenticated
+    if (!userId) {
         return {
             success: false,
             image: '',
             mimeType: 'image/png',
-            error: 'API key not configured',
-            details: 'Please provide your Gemini API key in settings',
+            error: 'Authentication required',
+            details: 'Please sign in or provide your own API key in settings',
         };
     }
+
+    // Use server-side generation with credit checking and model restrictions
+    return generateImageWithSubscription(request, userId, workspaceId);
+};
+
+const generateImageWithBYOK = async (
+    request: GenerateImageRequest,
+    apiKey: string
+): Promise<GenerateImageResponse> => {
 
     try {
         const ai = new GoogleGenAI({
@@ -171,6 +193,60 @@ export const generateImage = async (
             };
         }
 
+        return {
+            success: false,
+            image: '',
+            mimeType: 'image/png',
+            error: 'Failed to generate image',
+            details: error instanceof Error ? error.message : 'Unknown error',
+        };
+    }
+};
+
+const generateImageWithSubscription = async (
+    request: GenerateImageRequest,
+    userId: string,
+    workspaceId?: string
+): Promise<GenerateImageResponse> => {
+    try {
+        // Check if user has BYOK enabled (even if authenticated)
+        const usingBYOK = isUsingBYOK();
+        
+        const response = await fetch('/api/generate-image', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                imageBase64: request.imageBase64,
+                mimeType: request.mimeType,
+                prompt: request.prompt,
+                model: request.model,
+                workspaceId,
+                isBYOK: usingBYOK, // Send BYOK flag to server
+            }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            return {
+                success: false,
+                image: '',
+                mimeType: 'image/png',
+                error: data.error || 'Failed to generate image',
+                details: data.details,
+            };
+        }
+
+        return {
+            success: data.success,
+            image: data.image,
+            mimeType: data.mimeType,
+            description: data.description,
+        };
+    } catch (error) {
+        console.error('Error generating image with subscription:', error);
         return {
             success: false,
             image: '',
