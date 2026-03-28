@@ -4,7 +4,7 @@ import { getCreditCost, checkCreditsAvailable, deductCredits, isValidModel, getF
 import { isModelAllowed } from '@/app/utils/subscription';
 import { GoogleGenAI } from '@google/genai';
 import { uploadImageToCloudflare } from '@/app/utils/cloudflare';
-import { prisma } from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 
 const normalizeImagePayload = (value: string): string => {
     if (!value) return '';
@@ -187,13 +187,11 @@ export async function POST(request: NextRequest) {
                 cloudflareUrl = uploadResult.url;
 
                 // Save image asset to database
-                await prisma.imageAsset.create({
-                    data: {
-                        workspaceId,
-                        userId,
-                        cloudflareUrl: uploadResult.url,
-                        mimeType: generatedMimeType,
-                    },
+                await supabase.from('image_assets').insert({
+                    workspace_id: workspaceId,
+                    user_id: userId,
+                    cloudflare_url: uploadResult.url,
+                    mime_type: generatedMimeType,
                 });
             } catch (error) {
                 console.error('Error uploading to Cloudflare:', error);
@@ -235,4 +233,3 @@ export async function POST(request: NextRequest) {
         );
     }
 }
-

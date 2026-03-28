@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 import { hash } from 'bcryptjs';
 
 export async function POST(request: NextRequest) {
@@ -15,9 +15,11 @@ export async function POST(request: NextRequest) {
         }
 
         // Check if user already exists
-        const existingUser = await prisma.user.findUnique({
-            where: { email },
-        });
+        const { data: existingUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', email)
+            .single();
 
         if (existingUser) {
             return NextResponse.json(
@@ -30,20 +32,24 @@ export async function POST(request: NextRequest) {
         const hashedPassword = await hash(password, 12);
 
         // Create user
-        const user = await prisma.user.create({
-            data: {
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .insert({
                 email,
                 name,
                 password: hashedPassword,
-            },
-        });
+            })
+            .select()
+            .single();
+
+        if (userError || !user) {
+            throw userError ?? new Error('Failed to create user');
+        }
 
         // Create credit balance for new user
-        await prisma.creditBalance.create({
-            data: {
-                userId: user.id,
-                balance: 0,
-            },
+        await supabase.from('credit_balances').insert({
+            user_id: user.id,
+            balance: 0,
         });
 
         return NextResponse.json(
@@ -58,4 +64,3 @@ export async function POST(request: NextRequest) {
         );
     }
 }
-

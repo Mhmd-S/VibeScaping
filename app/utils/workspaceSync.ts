@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 import { hasActiveSubscription } from './subscription';
 import {
     uploadWorkspaceDataToCloudflare,
@@ -75,47 +75,69 @@ export const syncWorkspaceToCloud = async (
         const uploadResult = await uploadWorkspaceDataToCloudflare(localData, workspaceId);
         const dataHash = generateDataHash(localData);
 
-        // Create or update workspace in database
-        await prisma.workspace.upsert({
-            where: { id: workspaceId },
-            create: {
+        // Check if workspace already exists
+        const { data: existingWorkspace } = await supabase
+            .from('workspaces')
+            .select('id')
+            .eq('id', workspaceId)
+            .single();
+
+        if (existingWorkspace) {
+            // Update existing workspace
+            await supabase
+                .from('workspaces')
+                .update({
+                    name: localWorkspace.name,
+                    description: localWorkspace.description,
+                    updated_at: new Date(localWorkspace.updatedAt).toISOString(),
+                    last_opened_at: localWorkspace.lastOpenedAt
+                        ? new Date(localWorkspace.lastOpenedAt).toISOString()
+                        : null,
+                })
+                .eq('id', workspaceId);
+
+            // Upsert workspace data
+            const { data: existingData } = await supabase
+                .from('workspace_data')
+                .select('id')
+                .eq('workspace_id', workspaceId)
+                .single();
+
+            if (existingData) {
+                await supabase
+                    .from('workspace_data')
+                    .update({
+                        cloudflare_url: uploadResult.url,
+                        data_hash: dataHash,
+                    })
+                    .eq('workspace_id', workspaceId);
+            } else {
+                await supabase.from('workspace_data').insert({
+                    workspace_id: workspaceId,
+                    cloudflare_url: uploadResult.url,
+                    data_hash: dataHash,
+                });
+            }
+        } else {
+            // Create new workspace
+            await supabase.from('workspaces').insert({
                 id: workspaceId,
-                userId,
+                user_id: userId,
                 name: localWorkspace.name,
                 description: localWorkspace.description,
-                createdAt: new Date(localWorkspace.createdAt),
-                updatedAt: new Date(localWorkspace.updatedAt),
-                lastOpenedAt: localWorkspace.lastOpenedAt
-                    ? new Date(localWorkspace.lastOpenedAt)
+                created_at: new Date(localWorkspace.createdAt).toISOString(),
+                updated_at: new Date(localWorkspace.updatedAt).toISOString(),
+                last_opened_at: localWorkspace.lastOpenedAt
+                    ? new Date(localWorkspace.lastOpenedAt).toISOString()
                     : null,
-                workspaceData: {
-                    create: {
-                        cloudflareUrl: uploadResult.url,
-                        dataHash,
-                    },
-                },
-            },
-            update: {
-                name: localWorkspace.name,
-                description: localWorkspace.description,
-                updatedAt: new Date(localWorkspace.updatedAt),
-                lastOpenedAt: localWorkspace.lastOpenedAt
-                    ? new Date(localWorkspace.lastOpenedAt)
-                    : null,
-                workspaceData: {
-                    upsert: {
-                        create: {
-                            cloudflareUrl: uploadResult.url,
-                            dataHash,
-                        },
-                        update: {
-                            cloudflareUrl: uploadResult.url,
-                            dataHash,
-                        },
-                    },
-                },
-            },
-        });
+            });
+
+            await supabase.from('workspace_data').insert({
+                workspace_id: workspaceId,
+                cloudflare_url: uploadResult.url,
+                data_hash: dataHash,
+            });
+        }
 
         return { success: true };
     } catch (error) {
@@ -147,22 +169,23 @@ export const loadWorkspaceFromCloud = async (
 
     try {
         // Get workspace from database
-        const workspace = await prisma.workspace.findFirst({
-            where: {
-                id: workspaceId,
-                userId,
-            },
-            include: {
-                workspaceData: true,
-            },
-        });
+        const { data: workspace } = await supabase
+            .from('workspaces')
+            .select('*, workspace_data(*)')
+            .eq('id', workspaceId)
+            .eq('user_id', userId)
+            .single();
 
         if (!workspace) {
             return { success: false, error: 'Workspace not found' };
         }
 
         // Get workspace data from Cloudflare
-        if (!workspace.workspaceData) {
+        const workspaceData = Array.isArray(workspace.workspace_data)
+            ? workspace.workspace_data[0]
+            : workspace.workspace_data;
+
+        if (!workspaceData) {
             return { success: false, error: 'Workspace data not found in cloud' };
         }
 
@@ -221,4 +244,3 @@ export const migrateLocalWorkspacesToCloud = async (
         };
     }
 };
-

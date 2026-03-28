@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 
 // Re-export client-safe constants
 export {
@@ -24,9 +24,13 @@ export const TOPUP_PRICE_IDS: Record<string, string> = {
 };
 
 export const getSubscription = async (userId: string) => {
-    return await prisma.subscription.findUnique({
-        where: { userId },
-    });
+    const { data } = await supabase
+        .from('subscriptions')
+        .select()
+        .eq('user_id', userId)
+        .single();
+
+    return data;
 };
 
 export const hasActiveSubscription = async (userId: string): Promise<boolean> => {
@@ -35,7 +39,7 @@ export const hasActiveSubscription = async (userId: string): Promise<boolean> =>
 
     if (subscription.status !== 'active') return false;
 
-    if (subscription.currentPeriodEnd && subscription.currentPeriodEnd < new Date()) {
+    if (subscription.current_period_end && new Date(subscription.current_period_end) < new Date()) {
         return false;
     }
 

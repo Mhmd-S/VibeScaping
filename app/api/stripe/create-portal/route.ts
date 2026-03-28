@@ -11,12 +11,14 @@ export async function POST(request: NextRequest) {
         const session = await requireAuth();
         const userId = session.user.id;
 
-        const { prisma } = await import('@/lib/prisma');
-        const subscription = await prisma.subscription.findUnique({
-            where: { userId },
-        });
+        const { supabase } = await import('@/lib/supabase');
+        const { data: subscription } = await supabase
+            .from('subscriptions')
+            .select()
+            .eq('user_id', userId)
+            .single();
 
-        if (!subscription?.stripeCustomerId) {
+        if (!subscription?.stripe_customer_id) {
             return NextResponse.json(
                 { error: 'No subscription found' },
                 { status: 404 }
@@ -24,7 +26,7 @@ export async function POST(request: NextRequest) {
         }
 
         const portalSession = await getStripe().billingPortal.sessions.create({
-            customer: subscription.stripeCustomerId,
+            customer: subscription.stripe_customer_id,
             return_url: `${process.env.NEXTAUTH_URL}/settings/subscription`,
         });
 
@@ -37,4 +39,3 @@ export async function POST(request: NextRequest) {
         );
     }
 }
-

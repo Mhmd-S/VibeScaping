@@ -39,18 +39,22 @@ export async function POST(request: NextRequest) {
         }
 
         // Get or create Stripe customer
-        const { prisma } = await import('@/lib/prisma');
-        let subscription = await prisma.subscription.findUnique({
-            where: { userId },
-        });
+        const { supabase } = await import('@/lib/supabase');
+        const { data: subscription } = await supabase
+            .from('subscriptions')
+            .select()
+            .eq('user_id', userId)
+            .single();
 
         let customerId: string;
-        if (subscription?.stripeCustomerId) {
-            customerId = subscription.stripeCustomerId;
+        if (subscription?.stripe_customer_id) {
+            customerId = subscription.stripe_customer_id;
         } else {
-            const user = await prisma.user.findUnique({
-                where: { id: userId },
-            });
+            const { data: user } = await supabase
+                .from('users')
+                .select('email')
+                .eq('id', userId)
+                .single();
 
             const customer = await getStripe().customers.create({
                 email: user?.email || undefined,
@@ -59,18 +63,19 @@ export async function POST(request: NextRequest) {
 
             customerId = customer.id;
 
-            await prisma.subscription.upsert({
-                where: { userId },
-                create: {
-                    userId,
-                    stripeCustomerId: customerId,
+            if (subscription) {
+                await supabase
+                    .from('subscriptions')
+                    .update({ stripe_customer_id: customerId })
+                    .eq('user_id', userId);
+            } else {
+                await supabase.from('subscriptions').insert({
+                    user_id: userId,
+                    stripe_customer_id: customerId,
                     status: 'incomplete',
                     plan: 'free',
-                },
-                update: {
-                    stripeCustomerId: customerId,
-                },
-            });
+                });
+            }
         }
 
         // Create checkout session for one-time payment
@@ -103,4 +108,3 @@ export async function POST(request: NextRequest) {
         );
     }
 }
-

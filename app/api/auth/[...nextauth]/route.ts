@@ -1,8 +1,8 @@
 import NextAuth from 'next-auth';
-import { PrismaAdapter } from '@auth/prisma-adapter';
+import { SupabaseAdapter } from '@/lib/supabase-adapter';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
-import { prisma } from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 import { compare } from 'bcryptjs';
 import type { NextAuthConfig } from 'next-auth';
 
@@ -18,7 +18,8 @@ declare module 'next-auth' {
 }
 
 const config = {
-    adapter: PrismaAdapter(prisma) as any,
+    trustHost: true,
+    adapter: SupabaseAdapter() as any,
     providers: [
         CredentialsProvider({
             name: 'Credentials',
@@ -31,9 +32,11 @@ const config = {
                     return null;
                 }
 
-                const user = await prisma.user.findUnique({
-                    where: { email: credentials.email as string },
-                });
+                const { data: user } = await supabase
+                    .from('users')
+                    .select()
+                    .eq('email', credentials.email as string)
+                    .single();
 
                 if (!user || !user.password) {
                     return null;
@@ -86,4 +89,3 @@ const config = {
 export const { handlers, auth, signIn, signOut } = NextAuth(config);
 
 export const { GET, POST } = handlers;
-

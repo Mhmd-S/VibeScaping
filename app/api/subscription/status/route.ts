@@ -20,7 +20,7 @@ export async function GET() {
         return NextResponse.json({
             status: subscription.status,
             plan: subscription.plan,
-            currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() || null,
+            currentPeriodEnd: subscription.current_period_end || null,
         });
     } catch (error) {
         console.error('Error fetching subscription status:', error);

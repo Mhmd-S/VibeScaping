@@ -1,13 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { prisma } from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 import { getCreditsForPlan } from '@/app/utils/subscription';
+import { grantCredits } from '@/app/utils/credits';
 
 const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: '2025-02-24.acacia',
 });
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
+
+/**
+ * Check if a Stripe event has already been processed (idempotency).
+ * Returns true if already processed, false if new.
+ */
+async function isEventProcessed(eventId: string): Promise<boolean> {
+    const { data } = await supabase
+        .from('credit_transactions')
+        .select('id')
+        .like('reason', `%${eventId}%`)
+        .limit(1);
+
+    return !!data && data.length > 0;
+}
+
 
 export async function POST(request: NextRequest) {
     const body = await request.text();
@@ -36,7 +52,6 @@ export async function POST(request: NextRequest) {
         switch (event.type) {
             case 'checkout.session.completed': {
                 const session = event.data.object as Stripe.Checkout.Session;
-                const customerId = session.customer as string;
                 const subscriptionId = session.subscription as string;
                 const userId = session.metadata?.userId;
                 const paymentType = session.metadata?.type;
@@ -48,12 +63,18 @@ export async function POST(request: NextRequest) {
 
                 // Handle top-up payments (one-time payments)
                 if (paymentType === 'topup') {
+                    // Idempotency: skip if this event was already processed
+                    if (await isEventProcessed(event.id)) {
+                        console.log(`Skipping duplicate event: ${event.id}`);
+                        break;
+                    }
+
                     const credits = parseInt(session.metadata?.credits || '0', 10);
                     if (credits > 0) {
-                        await grantCreditsToUser(
+                        await grantCredits(
                             userId,
                             credits,
-                            `Top-up purchase: ${session.metadata?.productId || 'unknown'}`
+                            `Top-up purchase: ${session.metadata?.productId || 'unknown'} [${event.id}]`
                         );
                     }
                     break;
@@ -65,26 +86,23 @@ export async function POST(request: NextRequest) {
                     break;
                 }
 
-                // Get subscription details
+                // Get subscription details from Stripe
                 const subscription = await getStripe().subscriptions.retrieve(subscriptionId);
-                const planId = session.metadata?.planId || 'basic';
+                const planId = session.metadata?.planId || 'monthly';
 
                 // Update subscription in database
-                await prisma.subscription.update({
-                    where: { userId },
-                    data: {
-                        stripeSubscriptionId: subscriptionId,
+                await supabase
+                    .from('subscriptions')
+                    .update({
+                        stripe_subscription_id: subscriptionId,
                         status: subscription.status === 'active' ? 'active' : 'incomplete',
                         plan: planId,
-                        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-                    },
-                });
+                        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+                    })
+                    .eq('user_id', userId);
 
-                // Grant credits for the subscription period
-                const credits = getCreditsForPlan(planId);
-                if (credits > 0) {
-                    await grantCreditsToUser(userId, credits, `Subscription: ${planId}`);
-                }
+                // Credits are granted via invoice.payment_succeeded, not here,
+                // to avoid double-granting on new subscriptions.
 
                 break;
             }
@@ -93,18 +111,20 @@ export async function POST(request: NextRequest) {
                 const subscription = event.data.object as Stripe.Subscription;
                 const customerId = subscription.customer as string;
 
-                const dbSubscription = await prisma.subscription.findUnique({
-                    where: { stripeCustomerId: customerId },
-                });
+                const { data: dbSubscription } = await supabase
+                    .from('subscriptions')
+                    .select()
+                    .eq('stripe_customer_id', customerId)
+                    .single();
 
                 if (dbSubscription) {
-                    await prisma.subscription.update({
-                        where: { id: dbSubscription.id },
-                        data: {
+                    await supabase
+                        .from('subscriptions')
+                        .update({
                             status: subscription.status,
-                            currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-                        },
-                    });
+                            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+                        })
+                        .eq('id', dbSubscription.id);
                 }
 
                 break;
@@ -114,17 +134,17 @@ export async function POST(request: NextRequest) {
                 const subscription = event.data.object as Stripe.Subscription;
                 const customerId = subscription.customer as string;
 
-                const dbSubscription = await prisma.subscription.findUnique({
-                    where: { stripeCustomerId: customerId },
-                });
+                const { data: dbSubscription } = await supabase
+                    .from('subscriptions')
+                    .select()
+                    .eq('stripe_customer_id', customerId)
+                    .single();
 
                 if (dbSubscription) {
-                    await prisma.subscription.update({
-                        where: { id: dbSubscription.id },
-                        data: {
-                            status: 'canceled',
-                        },
-                    });
+                    await supabase
+                        .from('subscriptions')
+                        .update({ status: 'canceled' })
+                        .eq('id', dbSubscription.id);
                 }
 
                 break;
@@ -137,18 +157,26 @@ export async function POST(request: NextRequest) {
 
                 if (!subscriptionId) break;
 
-                const dbSubscription = await prisma.subscription.findUnique({
-                    where: { stripeCustomerId: customerId },
-                });
+                // Idempotency: skip if this event was already processed
+                if (await isEventProcessed(event.id)) {
+                    console.log(`Skipping duplicate event: ${event.id}`);
+                    break;
+                }
+
+                const { data: dbSubscription } = await supabase
+                    .from('subscriptions')
+                    .select()
+                    .eq('stripe_customer_id', customerId)
+                    .single();
 
                 if (dbSubscription) {
-                    // Grant credits for the new billing period
+                    // Grant credits for the billing period
                     const credits = getCreditsForPlan(dbSubscription.plan);
                     if (credits > 0) {
-                        await grantCreditsToUser(
-                            dbSubscription.userId,
+                        await grantCredits(
+                            dbSubscription.user_id,
                             credits,
-                            `Subscription renewal: ${dbSubscription.plan}`
+                            `Subscription payment: ${dbSubscription.plan} [${event.id}]`
                         );
                     }
                 }
@@ -169,39 +197,3 @@ export async function POST(request: NextRequest) {
         );
     }
 }
-
-async function grantCreditsToUser(userId: string, amount: number, reason: string) {
-    // Get or create credit balance
-    let creditBalance = await prisma.creditBalance.findUnique({
-        where: { userId },
-    });
-
-    if (!creditBalance) {
-        creditBalance = await prisma.creditBalance.create({
-            data: {
-                userId,
-                balance: amount,
-            },
-        });
-    } else {
-        creditBalance = await prisma.creditBalance.update({
-            where: { userId },
-            data: {
-                balance: {
-                    increment: amount,
-                },
-            },
-        });
-    }
-
-    // Log transaction
-    await prisma.creditTransaction.create({
-        data: {
-            userId,
-            type: 'grant',
-            amount,
-            reason,
-        },
-    });
-}
-

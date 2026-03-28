@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 
 // Free tier: 5 generations per month
 export const FREE_MONTHLY_GENERATIONS = 5;
@@ -30,11 +30,13 @@ export const getCreditCost = (model?: string): number => {
 };
 
 export const getCreditBalance = async (userId: string): Promise<number> => {
-    const creditBalance = await prisma.creditBalance.findUnique({
-        where: { userId },
-    });
+    const { data } = await supabase
+        .from('credit_balances')
+        .select('balance')
+        .eq('user_id', userId)
+        .single();
 
-    return creditBalance?.balance || 0;
+    return data?.balance || 0;
 };
 
 export const checkCreditsAvailable = async (
@@ -52,9 +54,16 @@ export const deductCredits = async (
     workspaceId?: string
 ): Promise<{ success: boolean; newBalance: number; error?: string }> => {
     try {
-        // Check if user has enough credits
-        const hasEnough = await checkCreditsAvailable(userId, amount);
-        if (!hasEnough) {
+        // Atomic check-and-deduct using RPC function
+        const { data: newBalance, error } = await supabase.rpc('deduct_credits', {
+            p_user_id: userId,
+            p_amount: amount,
+        });
+
+        if (error) throw error;
+
+        if (newBalance === null) {
+            // Either user doesn't exist or insufficient balance
             return {
                 success: false,
                 newBalance: await getCreditBalance(userId),
@@ -62,44 +71,18 @@ export const deductCredits = async (
             };
         }
 
-        // Get or create credit balance
-        let creditBalance = await prisma.creditBalance.findUnique({
-            where: { userId },
-        });
-
-        if (!creditBalance) {
-            creditBalance = await prisma.creditBalance.create({
-                data: {
-                    userId,
-                    balance: 0,
-                },
-            });
-        }
-
-        // Deduct credits
-        const updated = await prisma.creditBalance.update({
-            where: { userId },
-            data: {
-                balance: {
-                    decrement: amount,
-                },
-            },
-        });
-
         // Log transaction
-        await prisma.creditTransaction.create({
-            data: {
-                userId,
-                type: 'deduct',
-                amount,
-                model,
-                workspaceId,
-            },
+        await supabase.from('credit_transactions').insert({
+            user_id: userId,
+            type: 'deduct',
+            amount,
+            model: model ?? null,
+            workspace_id: workspaceId ?? null,
         });
 
         return {
             success: true,
-            newBalance: updated.balance,
+            newBalance,
         };
     } catch (error) {
         console.error('Error deducting credits:', error);
@@ -117,42 +100,50 @@ export const grantCredits = async (
     reason?: string
 ): Promise<{ success: boolean; newBalance: number }> => {
     try {
-        // Get or create credit balance
-        let creditBalance = await prisma.creditBalance.findUnique({
-            where: { userId },
-        });
+        // Try to update existing balance first
+        const { data: existing } = await supabase
+            .from('credit_balances')
+            .select('balance')
+            .eq('user_id', userId)
+            .single();
 
-        if (!creditBalance) {
-            creditBalance = await prisma.creditBalance.create({
-                data: {
-                    userId,
-                    balance: amount,
-                },
-            });
+        let newBalance: number;
+
+        if (existing) {
+            const { data, error } = await supabase
+                .from('credit_balances')
+                .update({ balance: existing.balance + amount })
+                .eq('user_id', userId)
+                .select('balance')
+                .single();
+
+            if (error) throw error;
+            newBalance = data!.balance;
         } else {
-            creditBalance = await prisma.creditBalance.update({
-                where: { userId },
-                data: {
-                    balance: {
-                        increment: amount,
-                    },
-                },
-            });
+            const { data, error } = await supabase
+                .from('credit_balances')
+                .insert({
+                    user_id: userId,
+                    balance: amount,
+                })
+                .select('balance')
+                .single();
+
+            if (error) throw error;
+            newBalance = data!.balance;
         }
 
         // Log transaction
-        await prisma.creditTransaction.create({
-            data: {
-                userId,
-                type: 'grant',
-                amount,
-                reason,
-            },
+        await supabase.from('credit_transactions').insert({
+            user_id: userId,
+            type: 'grant',
+            amount,
+            reason: reason ?? null,
         });
 
         return {
             success: true,
-            newBalance: creditBalance.balance,
+            newBalance,
         };
     } catch (error) {
         console.error('Error granting credits:', error);
@@ -168,46 +159,61 @@ export const getCreditTransactions = async (
     userId: string,
     limit: number = 50
 ) => {
-    return await prisma.creditTransaction.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-    });
+    const { data } = await supabase
+        .from('credit_transactions')
+        .select()
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    return data || [];
 };
 
 /**
  * Get or create a credit balance for a user, auto-resetting free generations monthly
  */
 const getOrCreateCreditBalance = async (userId: string) => {
-    let creditBalance = await prisma.creditBalance.findUnique({
-        where: { userId },
-    });
+    let { data: creditBalance } = await supabase
+        .from('credit_balances')
+        .select()
+        .eq('user_id', userId)
+        .single();
 
     if (!creditBalance) {
-        creditBalance = await prisma.creditBalance.create({
-            data: {
-                userId,
+        const { data, error } = await supabase
+            .from('credit_balances')
+            .insert({
+                user_id: userId,
                 balance: 0,
-                freeGenerationsUsed: 0,
-                freeGenerationsResetDate: new Date(),
-            },
-        });
+                free_generations_used: 0,
+                free_generations_reset_date: new Date().toISOString(),
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        creditBalance = data!;
     }
 
     // Check if we need to reset the monthly free generations
     const now = new Date();
-    const resetDate = creditBalance.freeGenerationsResetDate;
+    const resetDate = new Date(creditBalance.free_generations_reset_date);
     if (
         now.getMonth() !== resetDate.getMonth() ||
         now.getFullYear() !== resetDate.getFullYear()
     ) {
-        creditBalance = await prisma.creditBalance.update({
-            where: { userId },
-            data: {
-                freeGenerationsUsed: 0,
-                freeGenerationsResetDate: now,
-            },
-        });
+        const { data, error } = await supabase
+            .from('credit_balances')
+            .update({
+                free_generations_used: 0,
+                free_generations_reset_date: now.toISOString(),
+            })
+            .eq('user_id', userId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        creditBalance = data!;
     }
 
     return creditBalance;
@@ -218,7 +224,7 @@ const getOrCreateCreditBalance = async (userId: string) => {
  */
 export const getFreeGenerationsRemaining = async (userId: string): Promise<number> => {
     const creditBalance = await getOrCreateCreditBalance(userId);
-    return Math.max(0, FREE_MONTHLY_GENERATIONS - creditBalance.freeGenerationsUsed);
+    return Math.max(0, FREE_MONTHLY_GENERATIONS - creditBalance.free_generations_used);
 };
 
 /**
@@ -229,35 +235,38 @@ export const useFreeGeneration = async (
     model?: string,
     workspaceId?: string
 ): Promise<{ success: boolean; remaining: number }> => {
-    const creditBalance = await getOrCreateCreditBalance(userId);
-    const remaining = FREE_MONTHLY_GENERATIONS - creditBalance.freeGenerationsUsed;
+    try {
+        // Ensure balance record exists (and monthly reset is applied)
+        await getOrCreateCreditBalance(userId);
 
-    if (remaining <= 0) {
+        // Atomic check-and-increment using RPC function
+        const { data: newCount, error } = await supabase.rpc('use_free_generation', {
+            p_user_id: userId,
+            p_max_free: FREE_MONTHLY_GENERATIONS,
+        });
+
+        if (error) throw error;
+
+        if (newCount === null) {
+            return { success: false, remaining: 0 };
+        }
+
+        // Log as a transaction for tracking
+        await supabase.from('credit_transactions').insert({
+            user_id: userId,
+            type: 'deduct',
+            amount: 0,
+            model: model ?? null,
+            workspace_id: workspaceId ?? null,
+            reason: 'free_generation',
+        });
+
+        return {
+            success: true,
+            remaining: FREE_MONTHLY_GENERATIONS - newCount,
+        };
+    } catch (error) {
+        console.error('Error using free generation:', error);
         return { success: false, remaining: 0 };
     }
-
-    const updated = await prisma.creditBalance.update({
-        where: { userId },
-        data: {
-            freeGenerationsUsed: { increment: 1 },
-        },
-    });
-
-    // Log as a transaction for tracking
-    await prisma.creditTransaction.create({
-        data: {
-            userId,
-            type: 'deduct',
-            amount: 0, // Free generation, no credit cost
-            model,
-            workspaceId,
-            reason: 'free_generation',
-        },
-    });
-
-    return {
-        success: true,
-        remaining: FREE_MONTHLY_GENERATIONS - updated.freeGenerationsUsed,
-    };
 };
-

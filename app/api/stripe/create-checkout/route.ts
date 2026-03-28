@@ -30,19 +30,31 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        const priceId = PLAN_PRICE_IDS[planId];
+        if (!priceId) {
+            return NextResponse.json(
+                { error: 'Price not configured for this plan' },
+                { status: 500 }
+            );
+        }
+
         // Get or create Stripe customer
-        const { prisma } = await import('@/lib/prisma');
-        const subscription = await prisma.subscription.findUnique({
-            where: { userId },
-        });
+        const { supabase } = await import('@/lib/supabase');
+        const { data: subscription } = await supabase
+            .from('subscriptions')
+            .select()
+            .eq('user_id', userId)
+            .single();
 
         let customerId: string;
-        if (subscription?.stripeCustomerId) {
-            customerId = subscription.stripeCustomerId;
+        if (subscription?.stripe_customer_id) {
+            customerId = subscription.stripe_customer_id;
         } else {
-            const user = await prisma.user.findUnique({
-                where: { id: userId },
-            });
+            const { data: user } = await supabase
+                .from('users')
+                .select('email')
+                .eq('id', userId)
+                .single();
 
             const customer = await getStripe().customers.create({
                 email: user?.email || undefined,
@@ -54,20 +66,23 @@ export async function POST(request: NextRequest) {
             customerId = customer.id;
 
             // Create or update subscription record
-            await prisma.subscription.upsert({
-                where: { userId },
-                create: {
-                    userId,
-                    stripeCustomerId: customerId,
+            if (subscription) {
+                await supabase
+                    .from('subscriptions')
+                    .update({
+                        stripe_customer_id: customerId,
+                        status: 'incomplete',
+                        plan: planId,
+                    })
+                    .eq('user_id', userId);
+            } else {
+                await supabase.from('subscriptions').insert({
+                    user_id: userId,
+                    stripe_customer_id: customerId,
                     status: 'incomplete',
                     plan: planId,
-                },
-                update: {
-                    stripeCustomerId: customerId,
-                    status: 'incomplete',
-                    plan: planId,
-                },
-            });
+                });
+            }
         }
 
         // Create checkout session
@@ -77,7 +92,7 @@ export async function POST(request: NextRequest) {
             payment_method_types: ['card'],
             line_items: [
                 {
-                    price: PLAN_PRICE_IDS[planId],
+                    price: priceId,
                     quantity: 1,
                 },
             ],
@@ -98,4 +113,3 @@ export async function POST(request: NextRequest) {
         );
     }
 }
-
