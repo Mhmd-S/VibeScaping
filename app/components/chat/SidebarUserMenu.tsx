@@ -5,7 +5,6 @@ import { signOut } from 'next-auth/react';
 import {
     User,
     ChevronsUpDown,
-    Crown,
     Coins,
     Settings,
     LogOut,
@@ -74,13 +73,8 @@ export function SidebarUserMenu({ userName, userEmail, userId, isCollapsed }: Si
                 {/* Action links */}
                 <div className="py-1">
                     <MenuItem
-                        icon={<Crown className="h-4 w-4" />}
-                        label="Manage Subscription"
-                        onClick={() => router.push('/settings/subscription')}
-                    />
-                    <MenuItem
                         icon={<Coins className="h-4 w-4" />}
-                        label="Top Up Credits"
+                        label="Buy Credits"
                         onClick={() => router.push('/settings/topup')}
                     />
                     <MenuItem
@@ -120,7 +114,7 @@ function MenuItem({
         <button
             onClick={onClick}
             className={cn(
-                'flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-accent min-h-[44px] md:min-h-0',
+                'flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-accent min-h-[44px] lg:min-h-0',
                 destructive && 'text-destructive hover:text-destructive hover:bg-destructive/10'
             )}
         >

@@ -98,6 +98,26 @@ export const getWorkspaceDataFromCloudflare = async (
 };
 
 /**
+ * Generate a presigned URL for direct client upload to R2
+ */
+export const getPresignedUploadUrl = async (
+    workspaceId: string
+): Promise<{ uploadUrl: string; key: string; publicUrl: string }> => {
+    const key = `workspaces/${workspaceId}/data.json`;
+
+    const command = new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: key,
+        ContentType: 'application/json',
+    });
+
+    const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
+    const publicUrl = `${PUBLIC_URL}/${key}`;
+
+    return { uploadUrl, key, publicUrl };
+};
+
+/**
  * Delete asset from Cloudflare R2
  */
 export const deleteFromCloudflare = async (url: string): Promise<void> => {

@@ -1,24 +1,21 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/app/utils/auth';
 import { getCreditBalance, getFreeGenerationsRemaining, FREE_MONTHLY_GENERATIONS } from '@/app/utils/credits';
-import { getUserTier } from '@/app/utils/subscription';
 
 export async function GET() {
     try {
         const session = await requireAuth();
         const userId = session.user.id;
 
-        const [balance, freeRemaining, tier] = await Promise.all([
+        const [balance, freeRemaining] = await Promise.all([
             getCreditBalance(userId),
             getFreeGenerationsRemaining(userId),
-            getUserTier(userId),
         ]);
 
         return NextResponse.json({
             balance,
             freeGenerationsRemaining: freeRemaining,
             freeGenerationsTotal: FREE_MONTHLY_GENERATIONS,
-            tier,
         });
     } catch (error) {
         console.error('Error fetching credit balance:', error);

@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Crown, Coins, Sparkles } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Coins, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -17,7 +16,6 @@ interface AccountStatusProps {
 
 export function AccountStatus({ userId, compact = false, showTopUp = false, variant = 'card', className }: AccountStatusProps) {
     const router = useRouter();
-    const [subscription, setSubscription] = useState<{ status: string; plan: string } | null>(null);
     const [credits, setCredits] = useState<number | null>(null);
     const [freeGenerationsRemaining, setFreeGenerationsRemaining] = useState<number | null>(null);
     const [freeGenerationsTotal, setFreeGenerationsTotal] = useState<number>(5);
@@ -61,15 +59,7 @@ export function AccountStatus({ userId, compact = false, showTopUp = false, vari
                 return;
             }
 
-            const [subResponse, creditsResponse] = await Promise.all([
-                fetch('/api/subscription/status').catch(() => null),
-                fetch('/api/credits/balance').catch(() => null),
-            ]);
-
-            if (subResponse?.ok) {
-                const subData = await subResponse.json();
-                setSubscription(subData);
-            }
+            const creditsResponse = await fetch('/api/credits/balance').catch(() => null);
 
             if (creditsResponse?.ok) {
                 const creditsData = await creditsResponse.json();
@@ -85,7 +75,7 @@ export function AccountStatus({ userId, compact = false, showTopUp = false, vari
     };
 
     if (!userId && !isLoading) {
-        if (!subscription && credits === null) {
+        if (credits === null) {
             return null;
         }
     }
@@ -101,8 +91,6 @@ export function AccountStatus({ userId, compact = false, showTopUp = false, vari
         );
     }
 
-    const isActive = subscription?.status === 'active';
-    const tier = isActive ? 'paid' : 'free';
     const displayCredits = credits !== null ? credits : 0;
 
     if (compact) {
@@ -110,24 +98,12 @@ export function AccountStatus({ userId, compact = false, showTopUp = false, vari
             <div className={cn('rounded-lg border border-border bg-card p-2', className)}>
                 <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                        {tier === 'paid' ? (
-                            <Crown className="h-4 w-4 text-yellow-500" />
-                        ) : (
-                            <Sparkles className="h-4 w-4 text-muted-foreground" />
-                        )}
-                        <Badge variant={tier === 'paid' ? 'default' : 'secondary'} className="text-xs">
-                            {tier === 'paid' ? 'Paid' : 'Free'}
-                        </Badge>
+                        <Coins className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                        <span className="text-sm font-semibold">{displayCredits}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        {tier === 'free' && freeGenerationsRemaining !== null && (
-                            <span className="text-xs text-muted-foreground">{freeGenerationsRemaining} free</span>
-                        )}
-                        <div className="flex items-center gap-1">
-                            <Coins className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-sm font-semibold">{displayCredits}</span>
-                        </div>
-                    </div>
+                    {freeGenerationsRemaining !== null && (
+                        <span className="text-xs text-muted-foreground">{freeGenerationsRemaining} free</span>
+                    )}
                 </div>
             </div>
         );
@@ -135,24 +111,17 @@ export function AccountStatus({ userId, compact = false, showTopUp = false, vari
 
     const content = (
         <div className="space-y-2">
-            {/* Tier + Credits row */}
+            {/* Credits row */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                    {tier === 'paid' ? (
-                        <Crown className="h-4 w-4 text-yellow-500" />
-                    ) : (
-                        <Sparkles className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    <span className="text-xs font-semibold">{tier === 'paid' ? 'Paid' : 'Free'}</span>
+                    <Coins className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                    <span className="text-xs font-semibold">Credits</span>
                 </div>
-                <div className="flex items-center gap-1">
-                    <Coins className="h-3.5 w-3.5 text-yellow-600 dark:text-yellow-400" />
-                    <span className="text-sm font-bold">{displayCredits}</span>
-                </div>
+                <span className="text-sm font-bold">{displayCredits}</span>
             </div>
 
             {/* Free generations progress */}
-            {tier === 'free' && freeGenerationsRemaining !== null && (
+            {freeGenerationsRemaining !== null && (
                 <div>
                     <div className="flex items-center justify-between mb-1">
                         <span className="text-[11px] text-muted-foreground">Free generations</span>
@@ -173,21 +142,11 @@ export function AccountStatus({ userId, compact = false, showTopUp = false, vari
                     <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => router.push('/settings/subscription')}
+                        onClick={() => router.push('/settings/topup')}
                         className="flex-1 h-7 text-[11px]"
                     >
-                        {tier === 'paid' ? 'Manage' : 'Upgrade'}
+                        Buy Credits
                     </Button>
-                    {showTopUp && (
-                        <Button
-                            size="sm"
-                            variant={tier === 'paid' ? 'default' : 'outline'}
-                            onClick={() => router.push('/settings/topup')}
-                            className="flex-1 h-7 text-[11px]"
-                        >
-                            Top Up
-                        </Button>
-                    )}
                 </div>
             )}
         </div>
@@ -198,7 +157,7 @@ export function AccountStatus({ userId, compact = false, showTopUp = false, vari
     }
 
     return (
-        <div className={cn('rounded-lg border p-3', tier === 'paid' ? 'border-yellow-500/50 bg-yellow-500/5' : 'border-border bg-card', className)}>
+        <div className={cn('rounded-lg border border-border bg-card p-3', className)}>
             {content}
         </div>
     );

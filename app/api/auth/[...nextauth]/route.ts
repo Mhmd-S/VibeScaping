@@ -71,16 +71,19 @@ const config = {
         signIn: '/auth/signin',
     },
     callbacks: {
-        async jwt({ token, user }) {
+        async jwt({ token, user, account }) {
             if (user) {
+                console.log('[auth] jwt callback - user.id:', user.id, 'provider:', account?.provider);
                 token.id = user.id;
             }
+            console.log('[auth] jwt callback - token.id:', token.id, 'token.sub:', token.sub);
             return token;
         },
         async session({ session, token }) {
             if (session.user && token.id) {
                 session.user.id = token.id as string;
             }
+            console.log('[auth] session callback - session.user.id:', session.user?.id);
             return session;
         },
     },

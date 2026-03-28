@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/app/utils/auth';
 import { getCreditCost, checkCreditsAvailable, deductCredits, isValidModel, getFreeGenerationsRemaining, useFreeGeneration } from '@/app/utils/credits';
-import { isModelAllowed } from '@/app/utils/subscription';
 import { GoogleGenAI } from '@google/genai';
 import { uploadImageToCloudflare } from '@/app/utils/cloudflare';
 import { supabase } from '@/lib/supabase';
@@ -46,19 +45,6 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Check model access based on tier
-        const modelAllowed = await isModelAllowed(userId, modelName);
-        if (!modelAllowed) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    error: 'Model not allowed',
-                    details: `Model "${modelName}" is not available for free tier users. Free tier users can only use gemini-2.5-flash-image. Subscribe for access to all models.`,
-                },
-                { status: 403 }
-            );
-        }
-
         // Check if user can generate: free generations first, then paid credits
         const freeRemaining = await getFreeGenerationsRemaining(userId);
         const creditCost = getCreditCost(modelName);
@@ -69,7 +55,7 @@ export async function POST(request: NextRequest) {
                 {
                     success: false,
                     error: 'No generations available',
-                    details: 'You have used all your free generations this month and have no paid credits. Please subscribe or purchase credits to continue.',
+                    details: 'You have used all your free generations this month and have no paid credits. Please purchase credits to continue.',
                 },
                 { status: 402 }
             );

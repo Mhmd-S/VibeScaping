@@ -9,6 +9,7 @@ import type {
 } from "@excalidraw/excalidraw/types";
 import { GeneratedImage } from "../types/annotation";
 import { saveWorkspaceData, getWorkspaceData } from "@/app/utils/db";
+import { getWorkspace } from "@/app/utils/localWorkspace";
 
 export interface DrawingBoardRef {
   exportCanvasAsImage: () => Promise<{ image: string; mimeType: string } | null>;
@@ -184,12 +185,52 @@ export const DrawingBoard = forwardRef<any, any>(
                         const session = await sessionResponse.json();
                         const userId = session?.user?.id;
                         if (userId) {
-                            const syncResponse = await fetch('/api/workspace/sync', {
+                            const workspace = getWorkspace(id);
+
+                            // Get presigned URL for direct R2 upload
+                            const urlResponse = await fetch('/api/workspace/upload-url', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ workspaceId: id }),
                             });
-                            // Don't throw on sync failure - local save is primary
+                            if (!urlResponse.ok) {
+                                console.log('Failed to get upload URL');
+                                return;
+                            }
+                            const { uploadUrl, publicUrl } = await urlResponse.json();
+
+                            // Upload data directly to R2
+                            const dataJson = JSON.stringify(data);
+                            const uploadResponse = await fetch(uploadUrl, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: dataJson,
+                            });
+                            if (!uploadResponse.ok) {
+                                console.log('Direct R2 upload failed');
+                                return;
+                            }
+
+                            // Simple hash for change detection
+                            let hash = 0;
+                            for (let i = 0; i < dataJson.length; i++) {
+                                const char = dataJson.charCodeAt(i);
+                                hash = ((hash << 5) - hash) + char;
+                                hash = hash & hash;
+                            }
+                            const dataHash = Math.abs(hash).toString(36);
+
+                            // Sync metadata only
+                            const syncResponse = await fetch('/api/workspace/sync', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    workspaceId: id,
+                                    workspace,
+                                    cloudflareUrl: publicUrl,
+                                    dataHash,
+                                }),
+                            });
                             if (!syncResponse.ok) {
                                 console.log('Cloud sync failed, but local save succeeded');
                             }

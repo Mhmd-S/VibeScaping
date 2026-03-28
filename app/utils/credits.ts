@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 
 // Free tier: 5 generations per month
-export const FREE_MONTHLY_GENERATIONS = 5;
+export const FREE_MONTHLY_GENERATIONS = 3;
 
 // Model-based credit costs
 export const MODEL_CREDIT_COSTS: Record<string, number> = {
@@ -99,60 +99,62 @@ export const grantCredits = async (
     amount: number,
     reason?: string
 ): Promise<{ success: boolean; newBalance: number }> => {
-    try {
-        // Try to update existing balance first
-        const { data: existing } = await supabase
+    // Ensure the user exists (FK constraint on credit_balances and credit_transactions)
+    const { data: user } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', userId)
+        .single();
+
+    if (!user) {
+        throw new Error(`Cannot grant credits: user ${userId} does not exist in users table`);
+    }
+
+    // Ensure credit_balances row exists
+    const { data: existing } = await supabase
+        .from('credit_balances')
+        .select('balance')
+        .eq('user_id', userId)
+        .single();
+
+    let newBalance: number;
+
+    if (existing) {
+        const { data, error } = await supabase
             .from('credit_balances')
-            .select('balance')
+            .update({ balance: existing.balance + amount })
             .eq('user_id', userId)
+            .select('balance')
             .single();
 
-        let newBalance: number;
+        if (error) throw error;
+        newBalance = data!.balance;
+    } else {
+        const { data, error } = await supabase
+            .from('credit_balances')
+            .insert({
+                user_id: userId,
+                balance: amount,
+            })
+            .select('balance')
+            .single();
 
-        if (existing) {
-            const { data, error } = await supabase
-                .from('credit_balances')
-                .update({ balance: existing.balance + amount })
-                .eq('user_id', userId)
-                .select('balance')
-                .single();
-
-            if (error) throw error;
-            newBalance = data!.balance;
-        } else {
-            const { data, error } = await supabase
-                .from('credit_balances')
-                .insert({
-                    user_id: userId,
-                    balance: amount,
-                })
-                .select('balance')
-                .single();
-
-            if (error) throw error;
-            newBalance = data!.balance;
-        }
-
-        // Log transaction
-        await supabase.from('credit_transactions').insert({
-            user_id: userId,
-            type: 'grant',
-            amount,
-            reason: reason ?? null,
-        });
-
-        return {
-            success: true,
-            newBalance,
-        };
-    } catch (error) {
-        console.error('Error granting credits:', error);
-        const currentBalance = await getCreditBalance(userId);
-        return {
-            success: false,
-            newBalance: currentBalance,
-        };
+        if (error) throw error;
+        newBalance = data!.balance;
     }
+
+    // Log transaction
+    await supabase.from('credit_transactions').insert({
+        user_id: userId,
+        type: 'grant',
+        amount,
+        reason: reason ?? null,
+    });
+
+    return {
+        success: true,
+        newBalance,
+    };
 };
 
 export const getCreditTransactions = async (
@@ -180,6 +182,22 @@ const getOrCreateCreditBalance = async (userId: string) => {
         .single();
 
     if (!creditBalance) {
+        // Verify the user exists before creating a credit balance (FK constraint)
+        const { data: user } = await supabase
+            .from('users')
+            .select('id')
+            .eq('id', userId)
+            .single();
+
+        if (!user) {
+            // User doesn't exist in the database — return safe defaults
+            return {
+                balance: 0,
+                free_generations_used: 0,
+                free_generations_reset_date: new Date().toISOString(),
+            };
+        }
+
         const { data, error } = await supabase
             .from('credit_balances')
             .insert({

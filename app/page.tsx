@@ -100,7 +100,7 @@ const Home = () => {
                             <span className="bg-foreground size-2 rounded-full"></span>
                             <span>Draw on a whiteboard, iterate with AI, get into creative flow</span>
                         </Button>
-                        <div className="relative flex max-w-4xl items-center justify-center text-center text-5xl font-medium tracking-tight md:text-7xl">
+                        <div className="relative flex max-w-4xl items-center justify-center text-center text-5xl font-medium tracking-tight md:text-6xl lg:text-7xl">
                             <h1 className="relative z-10 tracking-tighter font-display">
                                 <span className="mr-3">Draw, refine, and vibe. </span>
                                 <span> {" "} Get into </span>

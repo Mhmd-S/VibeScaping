@@ -231,7 +231,7 @@ export function ChatSidebar03({
                                 <Button
                                     type="button"
                                     onClick={onWorkspaceCreate}
-                                    className="w-full mb-4 min-h-[44px] md:min-h-0"
+                                    className="w-full mb-4 min-h-[44px] lg:min-h-0"
                                     size="sm"
                                 >
                                     <Plus className="mr-2 h-4 w-4" />
@@ -309,7 +309,7 @@ export function ChatSidebar03({
                                 <div
                                     role="button"
                                     tabIndex={0}
-                                    className="h-8 w-8 md:h-6 md:w-6 hover:text-primary flex items-center justify-center rounded-md hover:bg-accent cursor-pointer transition-colors touch-manipulation"
+                                    className="h-8 w-8 lg:h-6 lg:w-6 hover:text-primary flex items-center justify-center rounded-md hover:bg-accent cursor-pointer transition-colors touch-manipulation"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         beginRename(workspace);
@@ -322,12 +322,12 @@ export function ChatSidebar03({
                                         }
                                     }}
                                 >
-                                    <Pencil className="h-4 w-4 md:h-3 md:w-3" />
+                                    <Pencil className="h-4 w-4 lg:h-3 lg:w-3" />
                                 </div>
                                 <div
                                     role="button"
                                     tabIndex={0}
-                                    className="h-8 w-8 md:h-6 md:w-6 hover:text-destructive flex items-center justify-center rounded-md hover:bg-accent cursor-pointer transition-colors touch-manipulation"
+                                    className="h-8 w-8 lg:h-6 lg:w-6 hover:text-destructive flex items-center justify-center rounded-md hover:bg-accent cursor-pointer transition-colors touch-manipulation"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setPendingDelete({ id: workspace.id, name: workspace.name });
@@ -340,7 +340,7 @@ export function ChatSidebar03({
                                         }
                                     }}
                                 >
-                                    <Trash2 className="h-4 w-4 md:h-3 md:w-3" />
+                                    <Trash2 className="h-4 w-4 lg:h-3 lg:w-3" />
                                 </div>
                                                             </div>
                                                         </>
@@ -368,7 +368,7 @@ export function ChatSidebar03({
                             <Button
                                 type="button"
                                 variant="ghost"
-                                className="w-full justify-start min-h-11 md:min-h-0"
+                                className="w-full justify-start min-h-11 lg:min-h-0"
                                 onClick={() => router.push('/auth/signin')}
                             >
                                 <User className="mr-2 h-4 w-4" />

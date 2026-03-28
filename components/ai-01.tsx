@@ -160,7 +160,7 @@ export default function Ai01({
   }
 
   return (
-    <div className="absolute bottom-18 left-4 right-4 md:bottom-8 md:left-[30%] md:right-auto md:w-[640px] z-50">
+    <div className="absolute bottom-18 left-4 right-4 md:bottom-8 lg:left-[30%] lg:right-auto lg:w-[640px] z-50">
       {showTitle && (
         <h1 className="mb-7 mx-auto max-w-2xl text-center text-2xl font-semibold leading-9 text-foreground px-1 text-pretty whitespace-pre-wrap">
           How can I help you today?

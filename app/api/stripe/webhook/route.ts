@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { supabase } from '@/lib/supabase';
-import { getCreditsForPlan } from '@/app/utils/subscription';
 import { grantCredits } from '@/app/utils/credits';
 
 const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -15,6 +13,7 @@ const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
  * Returns true if already processed, false if new.
  */
 async function isEventProcessed(eventId: string): Promise<boolean> {
+    const { supabase } = await import('@/lib/supabase');
     const { data } = await supabase
         .from('credit_transactions')
         .select('id')
@@ -26,6 +25,7 @@ async function isEventProcessed(eventId: string): Promise<boolean> {
 
 
 export async function POST(request: NextRequest) {
+    console.log('[webhook] Stripe webhook received');
     const body = await request.text();
     const signature = request.headers.get('stripe-signature');
 
@@ -52,7 +52,6 @@ export async function POST(request: NextRequest) {
         switch (event.type) {
             case 'checkout.session.completed': {
                 const session = event.data.object as Stripe.Checkout.Session;
-                const subscriptionId = session.subscription as string;
                 const userId = session.metadata?.userId;
                 const paymentType = session.metadata?.type;
 
@@ -71,113 +70,12 @@ export async function POST(request: NextRequest) {
 
                     const credits = parseInt(session.metadata?.credits || '0', 10);
                     if (credits > 0) {
-                        await grantCredits(
+                        const result = await grantCredits(
                             userId,
                             credits,
                             `Top-up purchase: ${session.metadata?.productId || 'unknown'} [${event.id}]`
                         );
-                    }
-                    break;
-                }
-
-                // Handle subscription payments
-                if (!subscriptionId) {
-                    console.error('No subscription ID for subscription checkout');
-                    break;
-                }
-
-                // Get subscription details from Stripe
-                const subscription = await getStripe().subscriptions.retrieve(subscriptionId);
-                const planId = session.metadata?.planId || 'monthly';
-
-                // Update subscription in database
-                await supabase
-                    .from('subscriptions')
-                    .update({
-                        stripe_subscription_id: subscriptionId,
-                        status: subscription.status === 'active' ? 'active' : 'incomplete',
-                        plan: planId,
-                        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-                    })
-                    .eq('user_id', userId);
-
-                // Credits are granted via invoice.payment_succeeded, not here,
-                // to avoid double-granting on new subscriptions.
-
-                break;
-            }
-
-            case 'customer.subscription.updated': {
-                const subscription = event.data.object as Stripe.Subscription;
-                const customerId = subscription.customer as string;
-
-                const { data: dbSubscription } = await supabase
-                    .from('subscriptions')
-                    .select()
-                    .eq('stripe_customer_id', customerId)
-                    .single();
-
-                if (dbSubscription) {
-                    await supabase
-                        .from('subscriptions')
-                        .update({
-                            status: subscription.status,
-                            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-                        })
-                        .eq('id', dbSubscription.id);
-                }
-
-                break;
-            }
-
-            case 'customer.subscription.deleted': {
-                const subscription = event.data.object as Stripe.Subscription;
-                const customerId = subscription.customer as string;
-
-                const { data: dbSubscription } = await supabase
-                    .from('subscriptions')
-                    .select()
-                    .eq('stripe_customer_id', customerId)
-                    .single();
-
-                if (dbSubscription) {
-                    await supabase
-                        .from('subscriptions')
-                        .update({ status: 'canceled' })
-                        .eq('id', dbSubscription.id);
-                }
-
-                break;
-            }
-
-            case 'invoice.payment_succeeded': {
-                const invoice = event.data.object as Stripe.Invoice;
-                const customerId = invoice.customer as string;
-                const subscriptionId = invoice.subscription as string;
-
-                if (!subscriptionId) break;
-
-                // Idempotency: skip if this event was already processed
-                if (await isEventProcessed(event.id)) {
-                    console.log(`Skipping duplicate event: ${event.id}`);
-                    break;
-                }
-
-                const { data: dbSubscription } = await supabase
-                    .from('subscriptions')
-                    .select()
-                    .eq('stripe_customer_id', customerId)
-                    .single();
-
-                if (dbSubscription) {
-                    // Grant credits for the billing period
-                    const credits = getCreditsForPlan(dbSubscription.plan);
-                    if (credits > 0) {
-                        await grantCredits(
-                            dbSubscription.user_id,
-                            credits,
-                            `Subscription payment: ${dbSubscription.plan} [${event.id}]`
-                        );
+                        console.log(`Granted ${credits} credits to user ${userId}, new balance: ${result.newBalance}`);
                     }
                 }
 

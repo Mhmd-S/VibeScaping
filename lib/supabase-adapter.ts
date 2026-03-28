@@ -4,9 +4,11 @@ import { supabase } from './supabase';
 export function SupabaseAdapter(): Adapter {
     return {
         async createUser(user) {
+            console.log('[adapter] createUser called with id:', user.id, 'email:', user.email);
             const { data, error } = await supabase
                 .from('users')
                 .insert({
+                    id: user.id,
                     name: user.name ?? null,
                     email: user.email,
                     email_verified: user.emailVerified?.toISOString() ?? null,
@@ -15,8 +17,12 @@ export function SupabaseAdapter(): Adapter {
                 .select()
                 .single();
 
-            if (error || !data) throw error ?? new Error('Failed to create user');
+            if (error || !data) {
+                console.error('[adapter] createUser error:', error);
+                throw error ?? new Error('Failed to create user');
+            }
 
+            console.log('[adapter] createUser success, DB id:', data.id);
             return {
                 id: data.id,
                 name: data.name,

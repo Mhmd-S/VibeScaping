@@ -1,29 +1,4 @@
-// Client-safe subscription plan and top-up constants (no server imports)
-
-export interface SubscriptionPlan {
-    id: string;
-    name: string;
-    credits: number;
-    price: number;
-    interval: 'month' | 'year';
-}
-
-export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
-    {
-        id: 'monthly',
-        name: 'Monthly',
-        credits: 100,
-        price: 20,
-        interval: 'month',
-    },
-    {
-        id: 'yearly',
-        name: 'Yearly',
-        credits: 110,
-        price: 192,
-        interval: 'year',
-    },
-];
+// Client-safe top-up constants (no server imports)
 
 export interface TopUpProduct {
     id: string;
@@ -62,14 +37,3 @@ export const TOP_UP_PRODUCTS: TopUpProduct[] = [
 export const getTopUpProduct = (productId: string): TopUpProduct | null => {
     return TOP_UP_PRODUCTS.find((p) => p.id === productId) || null;
 };
-
-export const getSubscriptionPlan = (planId: string): SubscriptionPlan | null => {
-    return SUBSCRIPTION_PLANS.find((plan) => plan.id === planId) || null;
-};
-
-export const getCreditsForPlan = (planId: string): number => {
-    const plan = getSubscriptionPlan(planId);
-    return plan?.credits || 0;
-};
-
-export type UserTier = 'free' | 'paid';

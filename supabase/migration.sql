@@ -127,7 +127,7 @@ create index if not exists idx_workspaces_user_id on workspaces(user_id);
 create index if not exists idx_image_assets_user_id on image_assets(user_id);
 create index if not exists idx_image_assets_workspace_id on image_assets(workspace_id);
 
--- RLS policies (enable RLS but allow service role to bypass)
+-- RLS: enable on all tables
 alter table users enable row level security;
 alter table accounts enable row level security;
 alter table sessions enable row level security;
@@ -138,6 +138,25 @@ alter table credit_transactions enable row level security;
 alter table workspaces enable row level security;
 alter table workspace_data enable row level security;
 alter table image_assets enable row level security;
+
+-- RLS policies: allow service_role full access (the app uses service role key)
+do $$
+declare
+    t text;
+begin
+    for t in select unnest(array[
+        'users','accounts','sessions','verification_tokens',
+        'subscriptions','credit_balances','credit_transactions',
+        'workspaces','workspace_data','image_assets'
+    ])
+    loop
+        execute format(
+            'create policy "Service role full access on %1$s" on %1$s for all to service_role using (true) with check (true)',
+            t
+        );
+    end loop;
+end;
+$$;
 
 -- Auto-update updated_at trigger
 create or replace function update_updated_at()
@@ -154,7 +173,7 @@ create trigger credit_balances_updated_at before update on credit_balances for e
 create trigger workspaces_updated_at before update on workspaces for each row execute function update_updated_at();
 create trigger workspace_data_updated_at before update on workspace_data for each row execute function update_updated_at();
 
--- RPC function for atomic credit deduction
+-- RPC function for atomic credit deduction (SECURITY DEFINER bypasses RLS)
 create or replace function deduct_credits(p_user_id text, p_amount integer)
 returns integer as $$
 declare
@@ -167,9 +186,9 @@ begin
 
     return new_balance;
 end;
-$$ language plpgsql;
+$$ language plpgsql security definer;
 
--- RPC function for atomic free generation usage
+-- RPC function for atomic free generation usage (SECURITY DEFINER bypasses RLS)
 create or replace function use_free_generation(p_user_id text, p_max_free integer)
 returns integer as $$
 declare
@@ -182,4 +201,4 @@ begin
 
     return new_count;
 end;
-$$ language plpgsql;
+$$ language plpgsql security definer;

@@ -2,18 +2,12 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, CreditCard, Check, X, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CreditCard, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { TOP_UP_PRODUCTS } from '@/app/utils/subscription-plans';
-
-interface SubscriptionData {
-    status: string;
-    plan: string;
-    currentPeriodEnd: string | null;
-}
 
 interface CreditData {
     balance: number;
@@ -30,7 +24,6 @@ export default function TopUpPage() {
 function TopUpContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
     const [credits, setCredits] = useState<CreditData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -59,15 +52,7 @@ function TopUpContent() {
         setError(null);
 
         try {
-            const [subResponse, creditsResponse] = await Promise.all([
-                fetch('/api/subscription/status'),
-                fetch('/api/credits/balance'),
-            ]);
-
-            if (subResponse.ok) {
-                const subData = await subResponse.json();
-                setSubscription(subData);
-            }
+            const creditsResponse = await fetch('/api/credits/balance');
 
             if (creditsResponse.ok) {
                 const creditsData = await creditsResponse.json();
@@ -109,8 +94,6 @@ function TopUpContent() {
             setIsProcessing(false);
         }
     };
-
-    const isActive = subscription?.status === 'active';
 
     return (
         <div className="container mx-auto max-w-4xl px-4 py-8">
@@ -232,7 +215,7 @@ function TopUpContent() {
                                 • Credits never expire and can be used anytime
                             </p>
                             <p>
-                                • Monthly subscribers receive 100 credits/month, yearly subscribers receive 110 credits/month
+                                • Purchase credit packs anytime to keep generating
                             </p>
                         </CardContent>
                     </Card>

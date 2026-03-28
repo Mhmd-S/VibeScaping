@@ -27,6 +27,15 @@ const ChatLayoutClientInner = ({ children, userName, userEmail, userId }: ChatLa
     const router = useRouter();
     const searchParams = useSearchParams();
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+    const [sidebarOpen, setSidebarOpen] = useState(true);
+
+    // On tablets (768-1023px), collapse sidebar by default to give more drawing space
+    useEffect(() => {
+        const hasCookie = document.cookie.split('; ').some(r => r.startsWith('sidebar_state='));
+        if (!hasCookie) {
+            setSidebarOpen(window.innerWidth >= 1024);
+        }
+    }, []);
 
     useEffect(() => {
         loadWorkspaces();
@@ -119,7 +128,7 @@ const ChatLayoutClientInner = ({ children, userName, userEmail, userId }: ChatLa
     };
 
     return (
-        <SidebarProvider>
+        <SidebarProvider defaultOpen={sidebarOpen}>
             <div className="relative flex h-screen w-full overflow-hidden">
                 <ChatSidebar03
                     workspaces={workspaces}
