@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/app/utils/auth';
-import { getCreditCost, checkCreditsAvailable, deductCredits, isValidModel } from '@/app/utils/credits';
+import { getCreditCost, checkCreditsAvailable, deductCredits, isValidModel, getFreeGenerationsRemaining, useFreeGeneration } from '@/app/utils/credits';
 import { isModelAllowed } from '@/app/utils/subscription';
 import { GoogleGenAI } from '@google/genai';
 import { uploadImageToCloudflare } from '@/app/utils/cloudflare';
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
         const userId = session.user.id;
 
         const body = await request.json();
-        const { imageBase64, mimeType, prompt, model, workspaceId, isBYOK } = body;
+        const { imageBase64, mimeType, prompt, model, workspaceId } = body;
 
         if (!imageBase64 || !mimeType) {
             return NextResponse.json(
@@ -33,7 +33,6 @@ export async function POST(request: NextRequest) {
         }
 
         const modelName = model || 'gemini-3-pro-image-preview';
-        const byokMode = Boolean(isBYOK);
 
         // Validate model name (prevent model name manipulation)
         if (!isValidModel(modelName)) {
@@ -47,48 +46,37 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Check model access based on tier and BYOK status
-        const modelAllowed = await isModelAllowed(userId, modelName, byokMode);
+        // Check model access based on tier
+        const modelAllowed = await isModelAllowed(userId, modelName);
         if (!modelAllowed) {
-            const tier = byokMode ? 'free tier (BYOK)' : 'free tier';
             return NextResponse.json(
                 {
                     success: false,
                     error: 'Model not allowed',
-                    details: `Model "${modelName}" is not available for ${tier} users. Free tier users can only use gemini-2.5-flash-image with credits, or use BYOK for all models.`,
+                    details: `Model "${modelName}" is not available for free tier users. Free tier users can only use gemini-2.5-flash-image. Subscribe for access to all models.`,
                 },
                 { status: 403 }
             );
         }
 
-        // If BYOK mode, user should use their own API key client-side
-        // Server should not make the API call in BYOK mode
-        if (byokMode) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    error: 'BYOK mode must use client-side generation',
-                    details: 'When using your own API key, image generation happens client-side. Please ensure BYOK mode is properly configured.',
-                },
-                { status: 400 }
-            );
-        }
-
-        // For credit-based usage, check credits
+        // Check if user can generate: free generations first, then paid credits
+        const freeRemaining = await getFreeGenerationsRemaining(userId);
         const creditCost = getCreditCost(modelName);
-
-        // Check if user has enough credits
         const hasCredits = await checkCreditsAvailable(userId, creditCost);
-        if (!hasCredits) {
+
+        if (freeRemaining <= 0 && !hasCredits) {
             return NextResponse.json(
                 {
                     success: false,
-                    error: 'Insufficient credits',
-                    details: `This operation requires ${creditCost} credits. Please subscribe or add credits.`,
+                    error: 'No generations available',
+                    details: 'You have used all your free generations this month and have no paid credits. Please subscribe or purchase credits to continue.',
                 },
                 { status: 402 }
             );
         }
+
+        // Track whether we'll use a free generation or paid credits
+        const usingFreeGeneration = freeRemaining > 0;
 
         // Use server API key
         const apiKey = process.env.GOOGLE_AI_API_KEY;
@@ -157,15 +145,34 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Deduct credits (BYOK mode is already rejected above)
-        const creditCost = getCreditCost(modelName);
-        const deductResult = await deductCredits(userId, creditCost, modelName, workspaceId);
-        if (!deductResult.success) {
-            return NextResponse.json({
-                success: false,
-                error: 'Failed to deduct credits',
-                details: deductResult.error,
-            });
+        // Deduct: use free generation if available, otherwise paid credits
+        let creditsRemaining = 0;
+        let freeGenerationsLeft = 0;
+
+        if (usingFreeGeneration) {
+            const freeResult = await useFreeGeneration(userId, modelName, workspaceId);
+            if (!freeResult.success) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Failed to use free generation',
+                });
+            }
+            freeGenerationsLeft = freeResult.remaining;
+            creditsRemaining = await (async () => {
+                const { getCreditBalance } = await import('@/app/utils/credits');
+                return getCreditBalance(userId);
+            })();
+        } else {
+            const deductResult = await deductCredits(userId, creditCost, modelName, workspaceId);
+            if (!deductResult.success) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Failed to deduct credits',
+                    details: deductResult.error,
+                });
+            }
+            creditsRemaining = deductResult.newBalance;
+            freeGenerationsLeft = 0;
         }
 
         // Upload to Cloudflare if workspaceId is provided
@@ -200,7 +207,8 @@ export async function POST(request: NextRequest) {
             mimeType: generatedMimeType,
             description: textResponse,
             cloudflareUrl,
-            creditsRemaining: deductResult.newBalance,
+            creditsRemaining,
+            freeGenerationsRemaining: freeGenerationsLeft,
         });
     } catch (error: any) {
         console.error('Error generating image:', error);

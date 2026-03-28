@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Users, BookOpen, Play, Key, HardDrive, Shield, Zap } from 'lucide-react';
+import { ArrowRight, Users, BookOpen, Play, HardDrive, Shield, Zap, Sparkles } from 'lucide-react';
 import { Logo } from '@/components/sidebar-03/logo';
 
 
@@ -98,7 +98,7 @@ const Home = () => {
                             className="whitespace-nowrap h-9 bg-muted/60 group mt-24 flex w-fit items-center justify-center gap-3 rounded-full px-5 py-1 tracking-tight text-md"
                         >
                             <span className="bg-foreground size-2 rounded-full"></span>
-                            <span>Draw on a whiteboard, iterate with NBP (BYOK), get into creative flow</span>
+                            <span>Draw on a whiteboard, iterate with AI, get into creative flow</span>
                         </Button>
                         <div className="relative flex max-w-4xl items-center justify-center text-center text-5xl font-medium tracking-tight md:text-7xl">
                             <h1 className="relative z-10 tracking-tighter font-display">
@@ -322,16 +322,16 @@ const Home = () => {
                         </p>
                     </div>
                     <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
-                        {/* Feature 1: BYOK */}
+                        {/* Feature 1: Free to Start */}
                         <div className="flex flex-col gap-4 p-6 rounded-lg border border-border bg-card">
                             <div className="flex items-center gap-3">
                                 <div className="flex items-center justify-center size-12 rounded-lg bg-primary/10">
-                                    <Key className="h-6 w-6 text-primary" />
+                                    <Sparkles className="h-6 w-6 text-primary" />
                                 </div>
-                                <h3 className="text-xl font-semibold">Bring Your Own Key</h3>
+                                <h3 className="text-xl font-semibold">Free to Start</h3>
                             </div>
                             <p className="text-muted-foreground">
-                                Use your own API key to access NBP directly. No intermediaries, no middlemen.
+                                Get 5 free AI image generations every month. No credit card required to get started.
                             </p>
                         </div>
 

@@ -10,9 +10,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { createWorkspace, updateLastOpened } from "@/app/utils/localWorkspace";
-import { generateImage } from "@/app/utils/geminiClient";
-import { getApiKey } from "@/app/utils/apiKey";
+import { generateImage, buildAnnotationPrompt } from "@/app/utils/geminiClient";
 import { getWorkspaceData, saveWorkspaceData } from "@/app/utils/db";
+import { savePrompt } from "@/app/utils/promptHistory";
 import { IconMessage } from "@tabler/icons-react";
 
 import dynamic from "next/dynamic";
@@ -49,6 +49,7 @@ const DrawingBoardChat = ({
   const [sendSelectedOnly, setSendSelectedOnly] = useState(false);
   const [isChatVisible, setIsChatVisible] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const userOverrodeSendSelected = useRef(false);
   const drawingBoardRef = useRef<DrawingBoardRef>(null);
 
   // Ensure we only run client-side code after mount
@@ -119,54 +120,45 @@ const DrawingBoardChat = ({
 
   const handleSelectionChange = useCallback((hasSelected: boolean) => {
     setHasSelectedElements(hasSelected);
-    // Reset sendSelectedOnly if no elements are selected
-    if (!hasSelected) {
+    if (hasSelected) {
+      // Auto-enable unless user manually toggled it off
+      if (!userOverrodeSendSelected.current) {
+        setSendSelectedOnly(true);
+      }
+    } else {
       setSendSelectedOnly(false);
+      userOverrodeSendSelected.current = false;
     }
   }, []);
 
-  const handleSubmit = async (
-    promptValue: string,
-    model?: GeminiImageModel
+  const handleSubmitCore = async (
+    prompt: string,
+    model: GeminiImageModel,
+    useSelectedOnly: boolean
   ) => {
     if (typeof window === 'undefined') return;
-    if (!promptValue.trim() || isLoading) return;
+    if (!prompt.trim() || isLoading) return;
 
-    // Check for API key
-    const apiKey = getApiKey();
-    if (!apiKey) {
-      toast.error("Please configure your Gemini API key in settings");
-      return;
-    }
-
-    // Ensure workspace exists
     if (!workspaceId) {
       handleFirstDraw();
     }
 
-    const currentPrompt = promptValue.trim();
-    const modelToUse = model || selectedModel;
     setPrompt("");
     setIsLoading(true);
 
     try {
-      // Use user's preference for sending selected only or full canvas
       let canvasExport;
 
-      if (sendSelectedOnly && hasSelectedElements) {
-        // Export only selected elements
+      if (useSelectedOnly && hasSelectedElements) {
         canvasExport = await drawingBoardRef.current?.exportSelectedElementsAsImage();
         if (!canvasExport) {
-          // Fallback to full canvas if selected export fails
           canvasExport = await drawingBoardRef.current?.exportCanvasAsImage();
         }
       } else {
-        // Export full canvas
         canvasExport = await drawingBoardRef.current?.exportCanvasAsImage();
       }
 
       if (!canvasExport) {
-        console.log("Canvas Export", canvasExport);
         throw new Error("Failed to export canvas, Chat");
       }
 
@@ -179,17 +171,17 @@ const DrawingBoardChat = ({
           userId = session?.user?.id || null;
         }
       } catch (error) {
-        // Session fetch failed, continue with BYOK mode
-        console.log('Session fetch failed, using BYOK mode');
+        // Session fetch failed
+        console.log('Session fetch failed');
       }
 
-      // Call Gemini API (handles both BYOK and subscription modes)
+      // Call Gemini API via server
       const result = await generateImage(
         {
-          prompt: currentPrompt,
+          prompt,
           imageBase64: canvasExport.image,
           mimeType: canvasExport.mimeType,
-          model: modelToUse,
+          model,
         },
         userId,
         workspaceId || undefined
@@ -201,7 +193,6 @@ const DrawingBoardChat = ({
         );
       }
 
-      // If we got an image back, update the drawing board
       if (result.image) {
         const base64Image = result.image.startsWith("data:")
           ? result.image
@@ -210,15 +201,14 @@ const DrawingBoardChat = ({
         const newImage: GeneratedImage = {
           image: base64Image,
           mimeType: result.mimeType || "image/png",
-          description: currentPrompt,
+          description: prompt,
         };
 
-        // Update drawing board with new image
         drawingBoardRef.current?.setImage(newImage);
 
+        savePrompt(prompt);
         toast.success("Image updated successfully");
       } else {
-        // If no image but we have a message, it's a text response (shouldn't happen in drawing mode, but handle it)
         toast.info("Response received");
       }
     } catch (err) {
@@ -228,6 +218,25 @@ const DrawingBoardChat = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSubmit = async (
+    promptValue: string,
+    model?: GeminiImageModel
+  ) => {
+    const currentPrompt = promptValue.trim();
+    const modelToUse = model || selectedModel;
+    await handleSubmitCore(currentPrompt, modelToUse, sendSelectedOnly);
+  };
+
+  const handleAnnotationSubmit = async (
+    promptValue: string,
+    model?: GeminiImageModel
+  ) => {
+    const annotationPrompt = buildAnnotationPrompt(promptValue);
+    const modelToUse = model || selectedModel;
+    // Always send full canvas for annotations (need full context)
+    await handleSubmitCore(annotationPrompt, modelToUse, false);
   };
 
   const handleFileSelect = async (files: File[]) => {
@@ -284,13 +293,11 @@ const DrawingBoardChat = ({
       />
 
       {isLoading && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
-          <div className="flex flex-col items-center gap-4">
-            <Spinner className="size-8 text-primary" />
-            <p className="text-sm text-muted-foreground">
-              Generating your image...
-            </p>
-          </div>
+        <div className="absolute bottom-36 right-6 z-50 flex items-center gap-3 rounded-xl bg-card/95 backdrop-blur-sm border border-border shadow-lg px-4 py-3 animate-fade-in-up">
+          <Spinner className="size-5 text-primary" />
+          <p className="text-sm text-muted-foreground font-medium">
+            Generating...
+          </p>
         </div>
       )}
 
@@ -307,7 +314,11 @@ const DrawingBoardChat = ({
         onModelChange={setSelectedModel}
         hasSelectedElements={hasSelectedElements}
         sendSelectedOnly={sendSelectedOnly}
-        onSendSelectedOnlyChange={setSendSelectedOnly}
+        onSendSelectedOnlyChange={(value: boolean) => {
+          userOverrodeSendSelected.current = !value;
+          setSendSelectedOnly(value);
+        }}
+        onAnnotationSubmit={handleAnnotationSubmit}
         isVisible={isMobile ? isChatVisible : true}
         onClose={isMobile ? () => setIsChatVisible(false) : undefined}
       />

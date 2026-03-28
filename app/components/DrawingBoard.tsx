@@ -9,7 +9,6 @@ import type {
 } from "@excalidraw/excalidraw/types";
 import { GeneratedImage } from "../types/annotation";
 import { saveWorkspaceData, getWorkspaceData } from "@/app/utils/db";
-import { hasApiKey } from "@/app/utils/apiKey";
 
 export interface DrawingBoardRef {
   exportCanvasAsImage: () => Promise<{ image: string; mimeType: string } | null>;
@@ -64,8 +63,35 @@ export const DrawingBoard = forwardRef<any, any>(
         }]);
 
         const appState = excalidrawAPI.getAppState();
-        const centerX = (appState.width / 2 - img.naturalWidth / 2) / appState.zoom.value - appState.scrollX;
-        const centerY = (appState.height / 2 - img.naturalHeight / 2) / appState.zoom.value - appState.scrollY;
+        const currentElements = excalidrawAPI.getSceneElements().filter((el: any) => !el.isDeleted);
+
+        // Calculate non-overlapping position
+        let targetX = (appState.width / 2 - img.naturalWidth / 2) / appState.zoom.value - appState.scrollX;
+        let targetY = (appState.height / 2 - img.naturalHeight / 2) / appState.zoom.value - appState.scrollY;
+
+        const PADDING = 40;
+        const existingImages = currentElements
+          .filter((el: any) => el.type === 'image')
+          .map((el: any) => ({
+            x: el.x,
+            y: el.y,
+            right: el.x + el.width,
+            bottom: el.y + el.height,
+          }));
+
+        const overlaps = (x: number, y: number, w: number, h: number) =>
+          existingImages.some((b: any) =>
+            x < b.right + PADDING &&
+            x + w > b.x - PADDING &&
+            y < b.bottom + PADDING &&
+            y + h > b.y - PADDING
+          );
+
+        if (existingImages.length > 0 && overlaps(targetX, targetY, img.naturalWidth, img.naturalHeight)) {
+          const maxRight = Math.max(...existingImages.map((b: any) => b.right));
+          targetX = maxRight + PADDING;
+          targetY = existingImages[0].y;
+        }
 
         // FIXED: Complete property set to prevent resizing TypeErrors
         const imageElement: any = {
@@ -73,8 +99,8 @@ export const DrawingBoard = forwardRef<any, any>(
           id: elementId,
           status: "saved",
           fileId: fileId,
-          x: centerX,
-          y: centerY,
+          x: targetX,
+          y: targetY,
           width: img.naturalWidth,
           height: img.naturalHeight,
           scale: [1, 1], // Scale factor [scaleX, scaleY]
@@ -95,14 +121,26 @@ export const DrawingBoard = forwardRef<any, any>(
           isDeleted: false,
           boundElements: [], // MUST be an empty array, not null
           updated: Date.now(),
-          link: null,
           locked: false,
         };
 
-        const currentElements = excalidrawAPI.getSceneElements();
         excalidrawAPI.updateScene({
           elements: [...currentElements, imageElement],
         });
+
+        // Scroll to the new image and temporarily highlight it
+        setTimeout(() => {
+          excalidrawAPI.scrollToContent(imageElement, { fitToViewport: false, animate: true });
+          excalidrawAPI.updateScene({
+            appState: { selectedElementIds: { [elementId]: true } },
+          });
+          // Remove highlight after 2.5s
+          setTimeout(() => {
+            excalidrawAPI.updateScene({
+              appState: { selectedElementIds: {} },
+            });
+          }, 2500);
+        }, 100);
 
       } catch (err) {
         onError?.("Failed to insert image");
@@ -139,21 +177,17 @@ export const DrawingBoard = forwardRef<any, any>(
                 // Always save to IndexedDB for local access
                 await saveWorkspaceData(id, data);
 
-                // If user has subscription and is not using BYOK, sync to cloud
+                // Sync to cloud if user has subscription
                 try {
                     const sessionResponse = await fetch('/api/auth/session');
                     if (sessionResponse.ok) {
                         const session = await sessionResponse.json();
                         const userId = session?.user?.id;
                         if (userId) {
-                            // Check if using BYOK (client-side check)
-                            const isBYOK = hasApiKey();
-                            
-                            // Check if should sync to cloud
                             const syncResponse = await fetch('/api/workspace/sync', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ workspaceId: id, isBYOK }),
+                                body: JSON.stringify({ workspaceId: id }),
                             });
                             // Don't throw on sync failure - local save is primary
                             if (!syncResponse.ok) {
@@ -297,9 +331,14 @@ export const DrawingBoard = forwardRef<any, any>(
 
     return (
       <div className="w-full h-full md:h-[calc(100vh-15px)] md:shadow-lg md:border md:border-border md:rounded-lg md:p-1 customStylesExcalidraw">
-        <Excalidraw 
+        <Excalidraw
           excalidrawAPI={(api) => setExcalidrawAPI(api)}
           onChange={handleExcalidrawChange}
+          UIOptions={{
+            canvasActions: {
+              loadScene: false,
+            },
+          }}
         />
       </div>
     );

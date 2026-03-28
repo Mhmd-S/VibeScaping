@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { requireAuth } from '@/app/utils/auth';
-import { SUBSCRIPTION_PLANS } from '@/app/utils/subscription';
+import { SUBSCRIPTION_PLANS, PLAN_PRICE_IDS } from '@/app/utils/subscription';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-    apiVersion: '2024-12-18.acacia',
+const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2025-02-24.acacia',
 });
 
 export async function POST(request: NextRequest) {
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
                 where: { id: userId },
             });
 
-            const customer = await stripe.customers.create({
+            const customer = await getStripe().customers.create({
                 email: user?.email || undefined,
                 metadata: {
                     userId,
@@ -71,13 +71,13 @@ export async function POST(request: NextRequest) {
         }
 
         // Create checkout session
-        const checkoutSession = await stripe.checkout.sessions.create({
+        const checkoutSession = await getStripe().checkout.sessions.create({
             customer: customerId,
             mode: 'subscription',
             payment_method_types: ['card'],
             line_items: [
                 {
-                    price: plan.priceId,
+                    price: PLAN_PRICE_IDS[planId],
                     quantity: 1,
                 },
             ],

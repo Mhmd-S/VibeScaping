@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, CreditCard, Check, X, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { TOP_UP_PRODUCTS } from '@/app/utils/subscription';
+import { TOP_UP_PRODUCTS } from '@/app/utils/subscription-plans';
 
 interface SubscriptionData {
     status: string;
@@ -20,6 +20,14 @@ interface CreditData {
 }
 
 export default function TopUpPage() {
+    return (
+        <Suspense fallback={<div className="text-center py-8">Loading...</div>}>
+            <TopUpContent />
+        </Suspense>
+    );
+}
+
+function TopUpContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
@@ -103,40 +111,6 @@ export default function TopUpPage() {
     };
 
     const isActive = subscription?.status === 'active';
-
-    // Check if user has active subscription
-    if (!isLoading && !isActive) {
-        return (
-            <div className="container mx-auto max-w-4xl px-4 py-8">
-                <div className="mb-6">
-                    <Button
-                        variant="ghost"
-                        onClick={() => router.back()}
-                        className="mb-4"
-                    >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Back
-                    </Button>
-                    <h1 className="text-3xl font-bold text-card-foreground">Top Up Credits</h1>
-                </div>
-
-                <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                        You need an active subscription to purchase credit top-ups. Please{' '}
-                        <Button
-                            variant="link"
-                            className="p-0 h-auto font-semibold"
-                            onClick={() => router.push('/settings/subscription')}
-                        >
-                            subscribe
-                        </Button>{' '}
-                        first.
-                    </AlertDescription>
-                </Alert>
-            </div>
-        );
-    }
 
     return (
         <div className="container mx-auto max-w-4xl px-4 py-8">
@@ -227,7 +201,7 @@ export default function TopUpPage() {
                                             <Button
                                                 className="w-full"
                                                 onClick={() => handleTopUp(product.id)}
-                                                disabled={isProcessing || !isActive}
+                                                disabled={isProcessing}
                                             >
                                                 <CreditCard className="mr-2 h-4 w-4" />
                                                 Purchase {product.name}
@@ -258,7 +232,7 @@ export default function TopUpPage() {
                                 • Credits never expire and can be used anytime
                             </p>
                             <p>
-                                • You receive 75 credits monthly with your subscription
+                                • Monthly subscribers receive 100 credits/month, yearly subscribers receive 110 credits/month
                             </p>
                         </CardContent>
                     </Card>

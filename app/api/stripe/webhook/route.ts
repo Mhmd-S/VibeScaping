@@ -3,8 +3,8 @@ import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
 import { getCreditsForPlan } from '@/app/utils/subscription';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-    apiVersion: '2024-12-18.acacia',
+const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2025-02-24.acacia',
 });
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     let event: Stripe.Event;
 
     try {
-        event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+        event = getStripe().webhooks.constructEvent(body, signature, webhookSecret);
     } catch (err: any) {
         console.error('Webhook signature verification failed:', err.message);
         return NextResponse.json(
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
                 }
 
                 // Get subscription details
-                const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+                const subscription = await getStripe().subscriptions.retrieve(subscriptionId);
                 const planId = session.metadata?.planId || 'basic';
 
                 // Update subscription in database

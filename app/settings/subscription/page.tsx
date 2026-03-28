@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, CreditCard, Check, X } from 'lucide-react';
+import { ArrowLeft, CreditCard, Check, X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -16,6 +16,9 @@ interface SubscriptionData {
 
 interface CreditData {
     balance: number;
+    freeGenerationsRemaining: number;
+    freeGenerationsTotal: number;
+    tier: string;
 }
 
 export default function SubscriptionPage() {
@@ -74,7 +77,6 @@ export default function SubscriptionPage() {
                 return;
             }
 
-            // Redirect to Stripe checkout
             if (data.url) {
                 window.location.href = data.url;
             }
@@ -101,7 +103,6 @@ export default function SubscriptionPage() {
                 return;
             }
 
-            // Redirect to Stripe customer portal
             if (data.url) {
                 window.location.href = data.url;
             }
@@ -204,6 +205,40 @@ export default function SubscriptionPage() {
                         </Card>
                     )}
 
+                    {/* Free Tier Info */}
+                    {credits && credits.tier === 'free' && (
+                        <Card className="border-primary/20 bg-primary/5">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Sparkles className="h-5 w-5 text-primary" />
+                                    Free Tier
+                                </CardTitle>
+                                <CardDescription>
+                                    You get {credits.freeGenerationsTotal} free image generations per month
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-sm font-medium">Generations used this month</span>
+                                    <span className="text-lg font-bold">
+                                        {credits.freeGenerationsTotal - credits.freeGenerationsRemaining}/{credits.freeGenerationsTotal}
+                                    </span>
+                                </div>
+                                <div className="h-2 w-full rounded-full bg-muted">
+                                    <div
+                                        className="h-full rounded-full bg-primary transition-all"
+                                        style={{ width: `${(credits.freeGenerationsRemaining / credits.freeGenerationsTotal) * 100}%` }}
+                                    />
+                                </div>
+                                {credits.freeGenerationsRemaining === 0 && (
+                                    <p className="text-sm text-muted-foreground mt-3">
+                                        You&apos;ve used all free generations this month. Subscribe or purchase credits to continue.
+                                    </p>
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
+
                     {/* Credit Balance */}
                     {credits && (
                         <Card>
@@ -219,40 +254,14 @@ export default function SubscriptionPage() {
                                         <p className="text-3xl font-bold">{credits.balance}</p>
                                         <p className="text-sm text-muted-foreground">credits remaining</p>
                                     </div>
-                                    {isActive && (
-                                        <Button
-                                            onClick={() => router.push('/settings/topup')}
-                                            variant="outline"
-                                        >
-                                            <CreditCard className="mr-2 h-4 w-4" />
-                                            Top Up Credits
-                                        </Button>
-                                    )}
+                                    <Button
+                                        onClick={() => router.push('/settings/topup')}
+                                        variant="outline"
+                                    >
+                                        <CreditCard className="mr-2 h-4 w-4" />
+                                        Top Up Credits
+                                    </Button>
                                 </div>
-                            </CardContent>
-                        </Card>
-                    )}
-
-                    {/* Top Up Section for Active Subscribers */}
-                    {isActive && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Top Up Credits</CardTitle>
-                                <CardDescription>
-                                    Purchase additional credits when you need more
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-sm text-muted-foreground mb-4">
-                                    Need more credits? Purchase additional credit packages to top up your account.
-                                </p>
-                                <Button
-                                    onClick={() => router.push('/settings/topup')}
-                                    className="w-full"
-                                >
-                                    <CreditCard className="mr-2 h-4 w-4" />
-                                    View Top-Up Options
-                                </Button>
                             </CardContent>
                         </Card>
                     )}
@@ -263,47 +272,111 @@ export default function SubscriptionPage() {
                             <CardHeader>
                                 <CardTitle>Subscribe</CardTitle>
                                 <CardDescription>
-                                    Choose a plan to get started with cloud storage and credits
+                                    Choose a plan to unlock more generations and premium features
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <div className="space-y-4">
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    {/* Monthly Plan */}
                                     <div className="rounded-lg border border-border p-4">
                                         <div className="flex items-center justify-between mb-2">
                                             <div>
-                                                <h3 className="font-semibold">Basic Plan</h3>
+                                                <h3 className="font-semibold">Monthly</h3>
                                                 <p className="text-sm text-muted-foreground">
-                                                    75 credits/month
+                                                    100 credits/month
                                                 </p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-2xl font-bold">$9.99</p>
+                                                <p className="text-2xl font-bold">$20</p>
                                                 <p className="text-xs text-muted-foreground">per month</p>
                                             </div>
                                         </div>
                                         <ul className="mt-4 space-y-2 text-sm">
                                             <li className="flex items-center">
                                                 <Check className="mr-2 h-4 w-4 text-primary" />
-                                                Cloud storage for workspaces
+                                                ~37-38 mixed prompts/month
                                             </li>
                                             <li className="flex items-center">
                                                 <Check className="mr-2 h-4 w-4 text-primary" />
-                                                75 credits per month
+                                                All AI models included
                                             </li>
                                             <li className="flex items-center">
                                                 <Check className="mr-2 h-4 w-4 text-primary" />
-                                                Sync across devices
+                                                Cloud workspace sync
                                             </li>
                                         </ul>
                                         <Button
                                             className="mt-4 w-full"
-                                            onClick={() => handleSubscribe('basic')}
+                                            onClick={() => handleSubscribe('monthly')}
                                             disabled={isProcessing}
                                         >
-                                            Subscribe to Basic
+                                            Subscribe Monthly
+                                        </Button>
+                                    </div>
+
+                                    {/* Yearly Plan */}
+                                    <div className="rounded-lg border-2 border-primary p-4 relative">
+                                        <Badge className="absolute -top-2.5 right-4 text-xs">Save 20%</Badge>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div>
+                                                <h3 className="font-semibold">Yearly</h3>
+                                                <p className="text-sm text-muted-foreground">
+                                                    110 credits/month (10% bonus)
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-2xl font-bold">$192</p>
+                                                <p className="text-xs text-muted-foreground">per year ($16/mo)</p>
+                                            </div>
+                                        </div>
+                                        <ul className="mt-4 space-y-2 text-sm">
+                                            <li className="flex items-center">
+                                                <Check className="mr-2 h-4 w-4 text-primary" />
+                                                ~41-42 mixed prompts/month
+                                            </li>
+                                            <li className="flex items-center">
+                                                <Check className="mr-2 h-4 w-4 text-primary" />
+                                                All AI models included
+                                            </li>
+                                            <li className="flex items-center">
+                                                <Check className="mr-2 h-4 w-4 text-primary" />
+                                                Cloud workspace sync
+                                            </li>
+                                            <li className="flex items-center">
+                                                <Check className="mr-2 h-4 w-4 text-primary" />
+                                                10% bonus credits monthly
+                                            </li>
+                                        </ul>
+                                        <Button
+                                            className="mt-4 w-full"
+                                            onClick={() => handleSubscribe('yearly')}
+                                            disabled={isProcessing}
+                                        >
+                                            Subscribe Yearly
                                         </Button>
                                     </div>
                                 </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Top Up Section */}
+                    {isActive && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Top Up Credits</CardTitle>
+                                <CardDescription>
+                                    Purchase additional credits when you need more
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Button
+                                    onClick={() => router.push('/settings/topup')}
+                                    className="w-full"
+                                >
+                                    <CreditCard className="mr-2 h-4 w-4" />
+                                    View Top-Up Options
+                                </Button>
                             </CardContent>
                         </Card>
                     )}
@@ -312,4 +385,3 @@ export default function SubscriptionPage() {
         </div>
     );
 }
-

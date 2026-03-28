@@ -12,16 +12,13 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import {
     Plus,
-    Settings,
     Pencil,
     Trash2,
     LayoutDashboard,
-    LogOut,
     User,
 } from 'lucide-react';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { signOut } from 'next-auth/react';
 import { Logo } from '@/components/sidebar-03/logo';
 import { Button } from '@/components/ui/button';
 import { Workspace } from '@/app/types/workspace';
@@ -34,7 +31,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { AccountStatus } from '@/app/components/AccountStatus';
+import { SidebarUserMenu } from '@/app/components/chat/SidebarUserMenu';
 
 interface ChatSidebar03Props {
     workspaces: Workspace[];
@@ -358,59 +355,26 @@ export function ChatSidebar03({
                     </div>
                 </SidebarContent>
 
-                <SidebarFooter className="px-2 space-y-2">
-                    {userId && (
-                        <>
-                            {!isCollapsed && (
-                                <div className="rounded-lg border border-border bg-card p-2 mb-2">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                                            <User className="h-4 w-4 text-primary" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium truncate">{userName}</p>
-                                            <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                            <AccountStatus userId={userId} compact={isCollapsed} showTopUp={!isCollapsed} />
-                        </>
-                    )}
-                    {!isCollapsed && (
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            className="w-full justify-start min-h-[44px] md:min-h-0"
-                            onClick={() => router.push('/settings')}
-                        >
-                            <Settings className="mr-2 h-4 w-4" />
-                            Settings
-                        </Button>
-                    )}
-                    {userId && (
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            className="w-full justify-start min-h-[44px] md:min-h-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={async () => {
-                                await signOut({ callbackUrl: '/' });
-                            }}
-                        >
-                            <LogOut className="mr-2 h-4 w-4" />
-                            {!isCollapsed && 'Sign Out'}
-                        </Button>
-                    )}
-                    {!userId && !isCollapsed && (
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            className="w-full justify-start min-h-[44px] md:min-h-0"
-                            onClick={() => router.push('/auth/signin')}
-                        >
-                            <User className="mr-2 h-4 w-4" />
-                            Sign In
-                        </Button>
+                <SidebarFooter className="px-2 py-2">
+                    {userId ? (
+                        <SidebarUserMenu
+                            userName={userName}
+                            userEmail={userEmail}
+                            userId={userId}
+                            isCollapsed={isCollapsed}
+                        />
+                    ) : (
+                        !isCollapsed && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                className="w-full justify-start min-h-11 md:min-h-0"
+                                onClick={() => router.push('/auth/signin')}
+                            >
+                                <User className="mr-2 h-4 w-4" />
+                                Sign In
+                            </Button>
+                        )
                     )}
                 </SidebarFooter>
             </Sidebar>

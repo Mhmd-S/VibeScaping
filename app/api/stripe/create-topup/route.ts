@@ -1,29 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { requireAuth } from '@/app/utils/auth';
-import { hasActiveSubscription } from '@/app/utils/subscription';
-import { TOP_UP_PRODUCTS, getTopUpProduct } from '@/app/utils/subscription';
+import { getTopUpProduct, TOPUP_PRICE_IDS } from '@/app/utils/subscription';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-    apiVersion: '2024-12-18.acacia',
+const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2025-02-24.acacia',
 });
 
 export async function POST(request: NextRequest) {
     try {
         const session = await requireAuth();
         const userId = session.user.id;
-
-        // Only subscribed users can top up
-        const hasSubscription = await hasActiveSubscription(userId);
-        if (!hasSubscription) {
-            return NextResponse.json(
-                {
-                    error: 'Active subscription required',
-                    details: 'Only subscribed users can purchase credit top-ups. Please subscribe first.',
-                },
-                { status: 403 }
-            );
-        }
 
         const body = await request.json();
         const { productId } = body;
@@ -43,27 +30,57 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Get or create Stripe customer
-        const { prisma } = await import('@/lib/prisma');
-        const subscription = await prisma.subscription.findUnique({
-            where: { userId },
-        });
-
-        if (!subscription?.stripeCustomerId) {
+        const priceId = TOPUP_PRICE_IDS[productId];
+        if (!priceId) {
             return NextResponse.json(
-                { error: 'No Stripe customer found' },
-                { status: 404 }
+                { error: 'Price not configured for this product' },
+                { status: 500 }
             );
         }
 
+        // Get or create Stripe customer
+        const { prisma } = await import('@/lib/prisma');
+        let subscription = await prisma.subscription.findUnique({
+            where: { userId },
+        });
+
+        let customerId: string;
+        if (subscription?.stripeCustomerId) {
+            customerId = subscription.stripeCustomerId;
+        } else {
+            const user = await prisma.user.findUnique({
+                where: { id: userId },
+            });
+
+            const customer = await getStripe().customers.create({
+                email: user?.email || undefined,
+                metadata: { userId },
+            });
+
+            customerId = customer.id;
+
+            await prisma.subscription.upsert({
+                where: { userId },
+                create: {
+                    userId,
+                    stripeCustomerId: customerId,
+                    status: 'incomplete',
+                    plan: 'free',
+                },
+                update: {
+                    stripeCustomerId: customerId,
+                },
+            });
+        }
+
         // Create checkout session for one-time payment
-        const checkoutSession = await stripe.checkout.sessions.create({
-            customer: subscription.stripeCustomerId,
-            mode: 'payment', // One-time payment, not subscription
+        const checkoutSession = await getStripe().checkout.sessions.create({
+            customer: customerId,
+            mode: 'payment',
             payment_method_types: ['card'],
             line_items: [
                 {
-                    price: product.priceId,
+                    price: priceId,
                     quantity: 1,
                 },
             ],

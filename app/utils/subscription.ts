@@ -1,64 +1,26 @@
 import { prisma } from '@/lib/prisma';
 
-export interface SubscriptionPlan {
-    id: string;
-    name: string;
-    priceId: string;
-    credits: number;
-    price: number;
-}
+// Re-export client-safe constants
+export {
+    SUBSCRIPTION_PLANS,
+    TOP_UP_PRODUCTS,
+    getTopUpProduct,
+    getSubscriptionPlan,
+    getCreditsForPlan,
+} from './subscription-plans';
+export type { SubscriptionPlan, TopUpProduct, UserTier } from './subscription-plans';
 
-export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
-    {
-        id: 'basic',
-        name: 'Basic',
-        priceId: process.env.STRIPE_PRICE_ID_BASIC || '',
-        credits: 75, // 75 credits per month as per plan
-        price: 9.99, // $9.99/month
-    },
-];
+// Price IDs (server-only, read from env)
+export const PLAN_PRICE_IDS: Record<string, string> = {
+    monthly: process.env.STRIPE_MONTHLY_PRICE_ID || '',
+    yearly: process.env.STRIPE_YEARLY_PRICE_ID || '',
+};
 
-export interface TopUpProduct {
-    id: string;
-    name: string;
-    priceId: string;
-    credits: number;
-    price: number;
-}
-
-export const TOP_UP_PRODUCTS: TopUpProduct[] = [
-    {
-        id: 'topup-25',
-        name: '25 Credits',
-        priceId: process.env.STRIPE_PRICE_ID_TOPUP_25 || '',
-        credits: 25,
-        price: 2.99,
-    },
-    {
-        id: 'topup-50',
-        name: '50 Credits',
-        priceId: process.env.STRIPE_PRICE_ID_TOPUP_50 || '',
-        credits: 50,
-        price: 4.99,
-    },
-    {
-        id: 'topup-100',
-        name: '100 Credits',
-        priceId: process.env.STRIPE_PRICE_ID_TOPUP_100 || '',
-        credits: 100,
-        price: 8.99,
-    },
-    {
-        id: 'topup-200',
-        name: '200 Credits',
-        priceId: process.env.STRIPE_PRICE_ID_TOPUP_200 || '',
-        credits: 200,
-        price: 15.99,
-    },
-];
-
-export const getTopUpProduct = (productId: string): TopUpProduct | null => {
-    return TOP_UP_PRODUCTS.find((p) => p.id === productId) || null;
+export const TOPUP_PRICE_IDS: Record<string, string> = {
+    'topup-starter': process.env.STRIPE_TOPUP_STARTER_PRICE_ID || '',
+    'topup-standard': process.env.STRIPE_TOPUP_STANDARD_PRICE_ID || '',
+    'topup-pro': process.env.STRIPE_TOPUP_PRO_PRICE_ID || '',
+    'topup-mega': process.env.STRIPE_TOPUP_MEGA_PRICE_ID || '',
 };
 
 export const getSubscription = async (userId: string) => {
@@ -80,45 +42,25 @@ export const hasActiveSubscription = async (userId: string): Promise<boolean> =>
     return true;
 };
 
-export const getSubscriptionPlan = (planId: string): SubscriptionPlan | null => {
-    return SUBSCRIPTION_PLANS.find((plan) => plan.id === planId) || null;
-};
-
-export const getCreditsForPlan = (planId: string): number => {
-    const plan = getSubscriptionPlan(planId);
-    return plan?.credits || 0;
-};
-
-export type UserTier = 'free' | 'paid';
-
 /**
  * Get user's tier based on subscription status
  */
-export const getUserTier = async (userId: string): Promise<UserTier> => {
+export const getUserTier = async (userId: string): Promise<'free' | 'paid'> => {
     const hasActive = await hasActiveSubscription(userId);
     return hasActive ? 'paid' : 'free';
 };
 
 /**
  * Get allowed models for a user tier
- * Free tier (credit-based): Only cheaper models
- * Free tier (BYOK): All models
+ * Free tier: Only cheaper models
  * Paid tier: All models
  */
-export const getAllowedModels = (tier: UserTier, isBYOK: boolean = false): string[] => {
+export const getAllowedModels = (tier: 'free' | 'paid'): string[] => {
     const allModels = [
         'gemini-3-pro-image-preview',
         'gemini-2.5-flash-image',
     ];
 
-    // If using BYOK, all models are allowed regardless of tier
-    if (isBYOK) {
-        return allModels;
-    }
-
-    // For credit-based usage:
-    // Free tier: Only cheaper models
-    // Paid tier: All models
     if (tier === 'free') {
         return ['gemini-2.5-flash-image'];
     }
@@ -132,10 +74,8 @@ export const getAllowedModels = (tier: UserTier, isBYOK: boolean = false): strin
 export const isModelAllowed = async (
     userId: string,
     model: string,
-    isBYOK: boolean = false
 ): Promise<boolean> => {
     const tier = await getUserTier(userId);
-    const allowedModels = getAllowedModels(tier, isBYOK);
+    const allowedModels = getAllowedModels(tier);
     return allowedModels.includes(model);
 };
-

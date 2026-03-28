@@ -14,8 +14,6 @@ export type WorkspaceMode = 'local' | 'cloud' | 'hybrid';
  * Determine if user should sync to cloud
  * Only paid tier users (with active subscription) can sync to cloud.
  * Free tier users can only save locally.
- * Note: BYOK preference is client-side only and cannot be checked server-side.
- * If BYOK users want to prevent syncing, they should handle it client-side.
  */
 export const shouldSyncToCloud = async (userId: string | null): Promise<boolean> => {
     if (!userId) return false;
@@ -29,16 +27,12 @@ export const shouldSyncToCloud = async (userId: string | null): Promise<boolean>
 
 /**
  * Get workspace storage mode
- * Note: BYOK preference is client-side only. This function only checks subscription status.
- * For full mode detection including BYOK, check client-side.
  */
 export const getWorkspaceMode = async (userId: string | null): Promise<WorkspaceMode> => {
     if (!userId) return 'local';
 
     const hasSubscription = await hasActiveSubscription(userId);
 
-    // Server can only determine based on subscription
-    // Client should check BYOK status separately if needed
     if (hasSubscription) {
         return 'cloud';
     }

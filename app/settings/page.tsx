@@ -1,128 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Eye, EyeOff, Save, Trash2, CreditCard, Link as LinkIcon } from 'lucide-react';
+import { ArrowLeft, CreditCard } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { getApiKey, setApiKey, deleteApiKey, hasApiKey } from '@/app/utils/apiKey';
 import { AccountStatus } from '@/app/components/AccountStatus';
 
 const SettingsPage = () => {
     const router = useRouter();
-    const [apiKeyInput, setApiKeyInput] = useState('');
-    const [maskedApiKey, setMaskedApiKey] = useState('');
-    const [showApiKey, setShowApiKey] = useState(false);
-    const [hasExistingKey, setHasExistingKey] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState<string | null>(null);
-    const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
-    const [creditBalance, setCreditBalance] = useState<number | null>(null);
-    const [isLoadingStatus, setIsLoadingStatus] = useState(true);
-
-    useEffect(() => {
-        loadApiKey();
-        loadSubscriptionStatus();
-    }, []);
-
-    const loadSubscriptionStatus = async () => {
-        setIsLoadingStatus(true);
-        try {
-            const [subResponse, creditsResponse] = await Promise.all([
-                fetch('/api/subscription/status').catch(() => null),
-                fetch('/api/credits/balance').catch(() => null),
-            ]);
-
-            if (subResponse?.ok) {
-                const subData = await subResponse.json();
-                setSubscriptionStatus(subData.status);
-            }
-
-            if (creditsResponse?.ok) {
-                const creditsData = await creditsResponse.json();
-                setCreditBalance(creditsData.balance);
-            }
-        } catch (err) {
-            // Ignore errors - user might not be logged in
-        } finally {
-            setIsLoadingStatus(false);
-        }
-    };
-
-    const loadApiKey = () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            if (hasApiKey()) {
-                const key = getApiKey();
-                if (key) {
-                    // Mask the key: show first 8 and last 4 characters
-                    const masked = key.length > 12
-                        ? `${key.substring(0, 8)}${'*'.repeat(key.length - 12)}${key.substring(key.length - 4)}`
-                        : '***';
-                    setMaskedApiKey(masked);
-                    setHasExistingKey(true);
-                }
-            } else {
-                setHasExistingKey(false);
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load API key');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleSave = () => {
-        if (!apiKeyInput.trim()) {
-            setError('API key is required');
-            return;
-        }
-
-        setIsSaving(true);
-        setError(null);
-        setSuccess(null);
-
-        try {
-            setApiKey(apiKeyInput.trim());
-            setSuccess('API key saved successfully');
-            setApiKeyInput('');
-            loadApiKey();
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to save API key');
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const handleDelete = () => {
-        if (!confirm('Are you sure you want to delete your API key?')) {
-            return;
-        }
-
-        setIsDeleting(true);
-        setError(null);
-        setSuccess(null);
-
-        try {
-            deleteApiKey();
-            setSuccess('API key deleted successfully');
-            setHasExistingKey(false);
-            setMaskedApiKey('');
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to delete API key');
-        } finally {
-            setIsDeleting(false);
-        }
-    };
 
     return (
         <div className="container mx-auto max-w-2xl px-4 py-8">
@@ -137,118 +22,34 @@ const SettingsPage = () => {
                 </Button>
                 <h1 className="text-3xl font-bold text-card-foreground">Settings</h1>
                 <p className="mt-2 text-sm text-muted-foreground">
-                    Manage your Gemini API key for chat and image generation
+                    Manage your account, subscription, and credits
                 </p>
             </div>
 
             <div className="space-y-6">
-                {/* Prominent Account Status */}
                 <AccountStatus userId={null} showTopUp />
 
-                <div className="rounded-lg border border-border bg-card p-6">
-                    <h2 className="mb-4 text-lg font-semibold text-card-foreground">
-                        Gemini API Key (BYOK)
-                    </h2>
-                    <p className="mb-4 text-sm text-muted-foreground">
-                        {hasApiKey()
-                            ? 'You are using BYOK mode. Your API key is used for all image generation requests, and data is stored locally.'
-                            : 'Provide your own Gemini API key to use BYOK mode. When using BYOK, your data is stored locally and no credits are required.'}
-                    </p>
-
-                    {isLoading ? (
-                        <div className="text-sm text-muted-foreground">Loading...</div>
-                    ) : hasExistingKey ? (
-                        <div className="space-y-4">
-                            <div>
-                                <Label htmlFor="masked-key">Current API Key</Label>
-                                <div className="mt-2 flex items-center gap-2">
-                                    <Input
-                                        id="masked-key"
-                                        type="text"
-                                        value={showApiKey ? maskedApiKey : maskedApiKey.replace(/./g, '*')}
-                                        readOnly
-                                        className="font-mono"
-                                    />
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="icon"
-                                        onClick={() => setShowApiKey(!showApiKey)}
-                                    >
-                                        {showApiKey ? (
-                                            <EyeOff className="h-4 w-4" />
-                                        ) : (
-                                            <Eye className="h-4 w-4" />
-                                        )}
-                                    </Button>
-                                </div>
-                            </div>
-                            <div className="flex gap-2">
-                                <Button
-                                    type="button"
-                                    variant="destructive"
-                                    onClick={handleDelete}
-                                    disabled={isDeleting}
-                                >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    {isDeleting ? 'Deleting...' : 'Delete API Key'}
-                                </Button>
-                            </div>
-                        </div>
-                    ) : null}
-
-                    <div className="mt-4">
-                        <Label htmlFor="api-key">
-                            {hasExistingKey ? 'Update API Key' : 'Enter API Key'}
-                        </Label>
-                        <Input
-                            id="api-key"
-                            type="password"
-                            value={apiKeyInput}
-                            onChange={(e) => setApiKeyInput(e.target.value)}
-                            placeholder="Enter your Gemini API key"
-                            className="mt-2 font-mono"
-                        />
-                        <p className="mt-2 text-xs text-muted-foreground">
-                            Get your API key from{' '}
-                            <a
-                                href="https://makersuite.google.com/app/apikey"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary hover:underline"
-                            >
-                                Google AI Studio
-                            </a>
-                        </p>
-                    </div>
-
-                    <div className="mt-4">
-                        <Button
-                            type="button"
-                            onClick={handleSave}
-                            disabled={isSaving || !apiKeyInput.trim()}
-                        >
-                            <Save className="mr-2 h-4 w-4" />
-                            {isSaving ? 'Saving...' : hasExistingKey ? 'Update API Key' : 'Save API Key'}
-                        </Button>
-                    </div>
+                <div className="flex flex-col gap-3">
+                    <Button
+                        variant="outline"
+                        onClick={() => router.push('/settings/subscription')}
+                        className="w-full justify-start"
+                    >
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        Manage Subscription
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={() => router.push('/settings/topup')}
+                        className="w-full justify-start"
+                    >
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        Top Up Credits
+                    </Button>
                 </div>
-
-                {error && (
-                    <Alert variant="destructive">
-                        <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                )}
-
-                {success && (
-                    <Alert>
-                        <AlertDescription>{success}</AlertDescription>
-                    </Alert>
-                )}
             </div>
         </div>
     );
 };
 
 export default SettingsPage;
-

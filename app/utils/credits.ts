@@ -1,5 +1,8 @@
 import { prisma } from '@/lib/prisma';
 
+// Free tier: 5 generations per month
+export const FREE_MONTHLY_GENERATIONS = 5;
+
 // Model-based credit costs
 export const MODEL_CREDIT_COSTS: Record<string, number> = {
     'gemini-3-pro-image-preview': 5, // Expensive model (Banana Pro)
@@ -170,5 +173,91 @@ export const getCreditTransactions = async (
         orderBy: { createdAt: 'desc' },
         take: limit,
     });
+};
+
+/**
+ * Get or create a credit balance for a user, auto-resetting free generations monthly
+ */
+const getOrCreateCreditBalance = async (userId: string) => {
+    let creditBalance = await prisma.creditBalance.findUnique({
+        where: { userId },
+    });
+
+    if (!creditBalance) {
+        creditBalance = await prisma.creditBalance.create({
+            data: {
+                userId,
+                balance: 0,
+                freeGenerationsUsed: 0,
+                freeGenerationsResetDate: new Date(),
+            },
+        });
+    }
+
+    // Check if we need to reset the monthly free generations
+    const now = new Date();
+    const resetDate = creditBalance.freeGenerationsResetDate;
+    if (
+        now.getMonth() !== resetDate.getMonth() ||
+        now.getFullYear() !== resetDate.getFullYear()
+    ) {
+        creditBalance = await prisma.creditBalance.update({
+            where: { userId },
+            data: {
+                freeGenerationsUsed: 0,
+                freeGenerationsResetDate: now,
+            },
+        });
+    }
+
+    return creditBalance;
+};
+
+/**
+ * Check how many free generations a user has remaining this month
+ */
+export const getFreeGenerationsRemaining = async (userId: string): Promise<number> => {
+    const creditBalance = await getOrCreateCreditBalance(userId);
+    return Math.max(0, FREE_MONTHLY_GENERATIONS - creditBalance.freeGenerationsUsed);
+};
+
+/**
+ * Use one free generation. Returns true if successful, false if none remaining.
+ */
+export const useFreeGeneration = async (
+    userId: string,
+    model?: string,
+    workspaceId?: string
+): Promise<{ success: boolean; remaining: number }> => {
+    const creditBalance = await getOrCreateCreditBalance(userId);
+    const remaining = FREE_MONTHLY_GENERATIONS - creditBalance.freeGenerationsUsed;
+
+    if (remaining <= 0) {
+        return { success: false, remaining: 0 };
+    }
+
+    const updated = await prisma.creditBalance.update({
+        where: { userId },
+        data: {
+            freeGenerationsUsed: { increment: 1 },
+        },
+    });
+
+    // Log as a transaction for tracking
+    await prisma.creditTransaction.create({
+        data: {
+            userId,
+            type: 'deduct',
+            amount: 0, // Free generation, no credit cost
+            model,
+            workspaceId,
+            reason: 'free_generation',
+        },
+    });
+
+    return {
+        success: true,
+        remaining: FREE_MONTHLY_GENERATIONS - updated.freeGenerationsUsed,
+    };
 };
 
