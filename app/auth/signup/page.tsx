@@ -34,7 +34,7 @@ export default function SignUpPage() {
                 return;
             }
 
-            // Redirect to sign in page with success message
+            // Redirect to sign in page — user needs to verify email first
             router.push('/auth/signin?registered=true');
         } catch (err) {
             setError('An error occurred. Please try again.');

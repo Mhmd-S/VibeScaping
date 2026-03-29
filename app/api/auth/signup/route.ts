@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
         // Hash password
         const hashedPassword = await hash(password, 12);
 
-        // Create user
+        // Create user (email_verified is null until verified)
         const { data: user, error: userError } = await supabase
             .from('users')
             .insert({
@@ -52,8 +52,23 @@ export async function POST(request: NextRequest) {
             balance: 0,
         });
 
+        // Create Supabase Auth user to trigger verification email
+        const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+        const { error: authError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                emailRedirectTo: `${baseUrl}/auth/verify-email`,
+            },
+        });
+
+        if (authError) {
+            console.error('[signup] Supabase Auth signUp error:', authError);
+            // Don't fail the whole signup — user was created, they can resend verification later
+        }
+
         return NextResponse.json(
-            { message: 'User created successfully', userId: user.id },
+            { message: 'User created successfully. Please check your email to verify your account.', userId: user.id },
             { status: 201 }
         );
     } catch (error) {

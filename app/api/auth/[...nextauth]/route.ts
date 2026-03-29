@@ -51,6 +51,11 @@ const config = {
                     return null;
                 }
 
+                // Block unverified credential users
+                if (!user.email_verified) {
+                    throw new Error('email-not-verified');
+                }
+
                 return {
                     id: user.id,
                     email: user.email,

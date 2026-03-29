@@ -19,7 +19,10 @@ export default function SignInPage() {
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         if (params.get('registered') === 'true') {
-            setSuccess('Account created successfully! Please sign in.');
+            setSuccess('Account created! Please check your email to verify your account before signing in.');
+        }
+        if (params.get('verified') === 'true') {
+            setSuccess('Email verified successfully! You can now sign in.');
         }
         const errorParam = params.get('error');
         if (errorParam === 'OAuthAccountNotLinked') {
@@ -41,7 +44,9 @@ export default function SignInPage() {
                 redirect: false,
             });
 
-            if (result?.error) {
+            if (result?.error === 'email-not-verified') {
+                setError('Please verify your email before signing in. Check your inbox for a verification link.');
+            } else if (result?.error) {
                 setError('Invalid email or password');
             } else {
                 router.push('/chat');
@@ -133,12 +138,19 @@ export default function SignInPage() {
                     Sign in with Google
                 </Button>
 
-                <p className="text-center text-sm text-muted-foreground">
-                    Don't have an account?{' '}
-                    <a href="/auth/signup" className="text-primary hover:underline">
-                        Sign up
-                    </a>
-                </p>
+                <div className="space-y-2 text-center text-sm text-muted-foreground">
+                    <p>
+                        <a href="/auth/forgot-password" className="text-primary hover:underline">
+                            Forgot your password?
+                        </a>
+                    </p>
+                    <p>
+                        Don't have an account?{' '}
+                        <a href="/auth/signup" className="text-primary hover:underline">
+                            Sign up
+                        </a>
+                    </p>
+                </div>
             </div>
         </div>
     );
