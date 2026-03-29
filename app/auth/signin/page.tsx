@@ -17,10 +17,15 @@ export default function SignInPage() {
     const [success, setSuccess] = useState<string | null>(null);
 
     useEffect(() => {
-        // Check if user was redirected after registration
         const params = new URLSearchParams(window.location.search);
         if (params.get('registered') === 'true') {
             setSuccess('Account created successfully! Please sign in.');
+        }
+        const errorParam = params.get('error');
+        if (errorParam === 'OAuthAccountNotLinked') {
+            setError('This email is already associated with a different sign-in method. Please use your original sign-in method.');
+        } else if (errorParam) {
+            setError('An error occurred during sign-in. Please try again.');
         }
     }, []);
 
